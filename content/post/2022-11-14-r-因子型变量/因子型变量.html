@@ -1,0 +1,152 @@
+---
+title: "因子型变量处理"
+author:
+  - 杨洪冰
+documentclass: ctexart
+output:
+  rticles::ctex:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+---
+
+
+
+<pre class="r"><code>library(tidyverse)
+library(palmerpenguins)</code></pre>
+<p>因子型变量通常出现在数据处理与可视化中，尤其对于那些不想按照字母顺序排序的向量来说，因子型变量可以发挥巨大的作用。</p>
+<p>创建一个字符型变量：</p>
+<pre class="r"><code>income &lt;- c(&#39;low&#39;, &#39;high&#39;, &#39;medium&#39;, &#39;medium&#39;, &#39;low&#39;, &#39;high&#39;, &#39;high&#39;)
+factor(income)</code></pre>
+<pre><code>## [1] low    high   medium medium low    high   high  
+## Levels: high low medium</code></pre>
+<p>发现这里的因子自动按照字母的顺序进行排列，而没有按照我们希望的顺序排列。可以指定顺序：</p>
+<pre class="r"><code>factor(income, levels = c(&#39;high&#39;, &#39;medium&#39;, &#39;low&#39;))</code></pre>
+<pre><code>## [1] low    high   medium medium low    high   high  
+## Levels: high medium low</code></pre>
+<p>如果在设置水平时，水平值少于实际值，如：</p>
+<pre class="r"><code>factor(income, levels = c(&#39;high&#39;, &#39;low&#39;))</code></pre>
+<pre><code>## [1] low  high &lt;NA&gt; &lt;NA&gt; low  high high
+## Levels: high low</code></pre>
+<p>发现未在水平中出现的值被默认为缺失值。</p>
+<div id="调整因子顺序" class="section level3">
+<h3>调整因子顺序</h3>
+<pre class="r"><code>x &lt;- factor(income)
+x</code></pre>
+<pre><code>## [1] low    high   medium medium low    high   high  
+## Levels: high low medium</code></pre>
+<pre class="r"><code>x %&gt;% fct_relevel(levels = c(&#39;high&#39;, &#39;medium&#39;, &#39;low&#39;))</code></pre>
+<pre><code>## [1] low    high   medium medium low    high   high  
+## Levels: high medium low</code></pre>
+<p>还可以让medium移到最前面：</p>
+<pre class="r"><code>x %&gt;% fct_relevel(levels = c(&#39;medium&#39;))</code></pre>
+<pre><code>## [1] low    high   medium medium low    high   high  
+## Levels: medium high low</code></pre>
+<p>或者让他移到最后面：</p>
+<pre class="r"><code>x %&gt;% fct_relevel(&#39;medium&#39;, after = Inf)</code></pre>
+<pre><code>## [1] low    high   medium medium low    high   high  
+## Levels: high low medium</code></pre>
+<p>还可以按照字符串第一次出现的顺序：</p>
+<pre class="r"><code>x %&gt;% fct_inorder()</code></pre>
+<pre><code>## [1] low    high   medium medium low    high   high  
+## Levels: low high medium</code></pre>
+</div>
+<div id="应用" class="section level3">
+<h3>应用</h3>
+<p>调整因子水平的顺序在ggplot绘图中的类别型变量中非常强大，为举例，我们假定有一个数据框：</p>
+<pre class="r"><code>d &lt;- tibble(
+  x = c(&quot;a&quot;,&quot;a&quot;, &quot;b&quot;, &quot;b&quot;, &quot;c&quot;, &quot;c&quot;),
+  y = c(2, 2, 1, 5,  0, 3)
+  
+)
+d</code></pre>
+<pre><code>## # A tibble: 6 × 2
+##   x         y
+##   &lt;chr&gt; &lt;dbl&gt;
+## 1 a         2
+## 2 a         2
+## 3 b         1
+## 4 b         5
+## 5 c         0
+## 6 c         3</code></pre>
+<p>对这个数据框做个散点图：</p>
+<pre class="r"><code>ggplot(d)+
+  geom_point(aes(x = x, y = y))</code></pre>
+<p><img src="/post/2022-11-14-r-因子型变量/%E5%9B%A0%E5%AD%90%E5%9E%8B%E5%8F%98%E9%87%8F_files/figure-html/unnamed-chunk-10-1.png" width="672" /></p>
+<p>发现横坐标上的顺序是a-b-c排列的。</p>
+<div id="fct_reorder" class="section level4">
+<h4><code>fct_reorder()</code></h4>
+<p>这个函数可以让x的顺序按照x分类变量对应y的统计值（如平均数、中位数、方差等）升序排序，以数据框d为例，首先计算三个分类变量的中位数：</p>
+<pre class="r"><code>d %&gt;% 
+  group_by(x) %&gt;% 
+  summarise(median = median(y)) %&gt;% 
+  arrange(median)</code></pre>
+<pre><code>## # A tibble: 3 × 2
+##   x     median
+##   &lt;chr&gt;  &lt;dbl&gt;
+## 1 c        1.5
+## 2 a        2  
+## 3 b        3</code></pre>
+<p>可以看到三个分类变量中位数由小到大分别为c-a-b，因此如果使用<code>fct_reorder()</code>：</p>
+<pre class="r"><code>ggplot(d)+
+  geom_point(aes(x = fct_reorder(x, y, median), y = y))</code></pre>
+<p><img src="/post/2022-11-14-r-因子型变量/%E5%9B%A0%E5%AD%90%E5%9E%8B%E5%8F%98%E9%87%8F_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+<p>当然，我们也可以添加参数<code>.desc = TRUE</code>来降序排列：</p>
+<pre class="r"><code>ggplot(d)+
+  geom_point(aes(x = fct_reorder(x, y, median, .desc = T), y = y))</code></pre>
+<p><img src="/post/2022-11-14-r-因子型变量/%E5%9B%A0%E5%AD%90%E5%9E%8B%E5%8F%98%E9%87%8F_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
+<p>虽然我们可以轻松地改变x的顺序，但是x的标题显得过于混乱，因此可以在画图前用mutate将分类变量转成新的列：</p>
+<pre class="r"><code>d %&gt;% 
+  mutate(x = fct_reorder(x, y, median, .desc = T)) %&gt;% 
+  ggplot()+
+  geom_point(aes(x = x, y = y))</code></pre>
+<p><img src="/post/2022-11-14-r-因子型变量/%E5%9B%A0%E5%AD%90%E5%9E%8B%E5%8F%98%E9%87%8F_files/figure-html/unnamed-chunk-14-1.png" width="672" /></p>
+</div>
+<div id="fct_rev" class="section level4">
+<h4><code>fct_rev()</code></h4>
+<p>这个函数可以按照因子水平的逆序排列：</p>
+<pre class="r"><code>d %&gt;% 
+  mutate(x = fct_rev(x)) %&gt;% 
+  ggplot(aes(x = x, y = y)) +
+  geom_point()</code></pre>
+<p><img src="/post/2022-11-14-r-因子型变量/%E5%9B%A0%E5%AD%90%E5%9E%8B%E5%8F%98%E9%87%8F_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+</div>
+<div id="fct_relevel" class="section level4">
+<h4><code>fct_relevel()</code></h4>
+<p>这个函数可以重新指定因子水平：</p>
+<pre class="r"><code>d %&gt;% 
+  mutate(
+    x = fct_relevel(x, c(&quot;c&quot;, &quot;a&quot;, &quot;b&quot;))
+  ) %&gt;% 
+  ggplot(aes(x = x, y = y)) +
+  geom_point()</code></pre>
+<p><img src="/post/2022-11-14-r-因子型变量/%E5%9B%A0%E5%AD%90%E5%9E%8B%E5%8F%98%E9%87%8F_files/figure-html/unnamed-chunk-16-1.png" width="672" /></p>
+</div>
+</div>
+<div id="可视化的运用" class="section level3">
+<h3>可视化的运用</h3>
+<pre class="r"><code>ggplot(penguins, aes(y = species)) +
+  geom_bar()</code></pre>
+<p><img src="/post/2022-11-14-r-因子型变量/%E5%9B%A0%E5%AD%90%E5%9E%8B%E5%8F%98%E9%87%8F_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
+<p>发现条形图长度错乱，调整成按数量排序：</p>
+<pre class="r"><code>penguins %&gt;% 
+  mutate(species = reorder(species, species, length)) %&gt;%
+  ggplot(aes(y = species))+
+  geom_bar()</code></pre>
+<p><img src="/post/2022-11-14-r-因子型变量/%E5%9B%A0%E5%AD%90%E5%9E%8B%E5%8F%98%E9%87%8F_files/figure-html/unnamed-chunk-18-1.png" width="672" /></p>
+</div>
+<div id="练习" class="section level3">
+<h3>练习</h3>
+<p>画出的2007年美洲人口寿命的柱状图，要求从高到低排序。</p>
+<pre class="r"><code>library(gapminder)</code></pre>
+<pre><code>## Warning: package &#39;gapminder&#39; was built under R version 4.2.2</code></pre>
+<pre class="r"><code>gapminder %&gt;%
+   filter(
+     year == 2007,
+     continent == &quot;Americas&quot;
+) %&gt;% 
+  mutate(country = fct_reorder(country, lifeExp)) %&gt;% 
+  ggplot()+
+  geom_col(aes(x = country, y = lifeExp))</code></pre>
+<p><img src="/post/2022-11-14-r-因子型变量/%E5%9B%A0%E5%AD%90%E5%9E%8B%E5%8F%98%E9%87%8F_files/figure-html/unnamed-chunk-19-1.png" width="672" /></p>
+</div>

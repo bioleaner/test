@@ -1,0 +1,177 @@
+---
+title: "因子型变量处理"
+author:
+  - 杨洪冰
+documentclass: ctexart
+output:
+  rticles::ctex:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+---
+
+```{r message=FALSE}
+library(tidyverse)
+library(palmerpenguins)
+```
+
+因子型变量通常出现在数据处理与可视化中，尤其对于那些不想按照字母顺序排序的向量来说，因子型变量可以发挥巨大的作用。
+
+创建一个字符型变量：
+
+```{r}
+income <- c('low', 'high', 'medium', 'medium', 'low', 'high', 'high')
+factor(income)
+```
+
+发现这里的因子自动按照字母的顺序进行排列，而没有按照我们希望的顺序排列。可以指定顺序：
+
+```{r}
+factor(income, levels = c('high', 'medium', 'low'))
+```
+
+如果在设置水平时，水平值少于实际值，如：
+
+```{r}
+factor(income, levels = c('high', 'low'))
+```
+
+发现未在水平中出现的值被默认为缺失值。
+
+### 调整因子顺序
+
+```{r warning=FALSE}
+x <- factor(income)
+x
+x %>% fct_relevel(levels = c('high', 'medium', 'low'))
+```
+
+还可以让medium移到最前面：
+
+```{r}
+x %>% fct_relevel(levels = c('medium'))
+```
+
+或者让他移到最后面：
+
+```{r}
+x %>% fct_relevel('medium', after = Inf)
+```
+
+还可以按照字符串第一次出现的顺序：
+
+```{r}
+x %>% fct_inorder()
+```
+
+### 应用
+
+调整因子水平的顺序在ggplot绘图中的类别型变量中非常强大，为举例，我们假定有一个数据框：
+
+```{r}
+d <- tibble(
+  x = c("a","a", "b", "b", "c", "c"),
+  y = c(2, 2, 1, 5,  0, 3)
+  
+)
+d
+```
+
+对这个数据框做个散点图：
+
+```{r}
+ggplot(d)+
+  geom_point(aes(x = x, y = y))
+```
+
+发现横坐标上的顺序是a-b-c排列的。
+
+#### `fct_reorder()`
+
+这个函数可以让x的顺序按照x分类变量对应y的统计值（如平均数、中位数、方差等）升序排序，以数据框d为例，首先计算三个分类变量的中位数：
+
+```{r}
+d %>% 
+  group_by(x) %>% 
+  summarise(median = median(y)) %>% 
+  arrange(median)
+```
+
+可以看到三个分类变量中位数由小到大分别为c-a-b，因此如果使用`fct_reorder()`：
+
+```{r}
+ggplot(d)+
+  geom_point(aes(x = fct_reorder(x, y, median), y = y))
+```
+
+当然，我们也可以添加参数`.desc = TRUE`来降序排列：
+
+```{r}
+ggplot(d)+
+  geom_point(aes(x = fct_reorder(x, y, median, .desc = T), y = y))
+```
+
+虽然我们可以轻松地改变x的顺序，但是x的标题显得过于混乱，因此可以在画图前用mutate将分类变量转成新的列：
+
+```{r}
+d %>% 
+  mutate(x = fct_reorder(x, y, median, .desc = T)) %>% 
+  ggplot()+
+  geom_point(aes(x = x, y = y))
+```
+
+#### `fct_rev()`
+
+这个函数可以按照因子水平的逆序排列：
+
+```{r}
+d %>% 
+  mutate(x = fct_rev(x)) %>% 
+  ggplot(aes(x = x, y = y)) +
+  geom_point()
+```
+
+#### `fct_relevel()`
+
+这个函数可以重新指定因子水平：
+
+```{r}
+d %>% 
+  mutate(
+    x = fct_relevel(x, c("c", "a", "b"))
+  ) %>% 
+  ggplot(aes(x = x, y = y)) +
+  geom_point()
+```
+
+### 可视化的运用
+
+```{r}
+ggplot(penguins, aes(y = species)) +
+  geom_bar()
+```
+
+发现条形图长度错乱，调整成按数量排序：
+
+```{r}
+penguins %>% 
+  mutate(species = reorder(species, species, length)) %>%
+  ggplot(aes(y = species))+
+  geom_bar()
+```
+
+### 练习
+
+画出的2007年美洲人口寿命的柱状图，要求从高到低排序。
+
+```{r}
+library(gapminder)
+gapminder %>%
+   filter(
+     year == 2007,
+     continent == "Americas"
+) %>% 
+  mutate(country = fct_reorder(country, lifeExp)) %>% 
+  ggplot()+
+  geom_col(aes(x = country, y = lifeExp))
+```

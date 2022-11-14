@@ -1,0 +1,161 @@
+---
+title: "在R Markdown文档中使用中文"
+author:
+  - 杨洪冰
+documentclass: ctexart
+keywords:
+  - 中文
+  - R Markdown
+output:
+  rticles::ctex:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+---
+
+## pheatmap包学习
+
+pheatmap是R里面绘制热图的傻瓜式包，可以绘制聚类热图，首先加载这个包和示例数据：
+
+```{r}
+library(pheatmap)
+library(readr)
+library(dplyr)
+library(tibble)
+data <- read_delim('D:/R/示例数据.txt', delim = '\t') %>% column_to_rownames(var = 'genus')
+#data <- read.table('示例数据.txt', sep = '\t', header = T, row.names = 1)
+#vroom::vroom('示例数据.txt', delim = '\t') %>% column_to_rownames(var = 'genus')
+```
+
+可以直接出图：
+
+```{r}
+pheatmap(data)
+```
+
+但是可以发现热图整体偏蓝，因此对数据进行标准化：
+
+```{r}
+data.1 <- vegan::decostand(data, 'standardize', MARGIN = 1)
+pheatmap(data.1)
+```
+
+### 热图美化
+
+#### 对热图聚类修改
+
+```{r}
+pheatmap(data.1, clustering_method = 'mcquitty')##聚类方法修改
+pheatmap(data.1, clustering_distance_rows = 'correlation') #行聚类距离
+pheatmap(data.1, cluster_rows = F, cluster_cols = F)#取消聚类
+pheatmap(data.1, treeheight_row = 50)#设置聚类树高，行列都可以
+```
+
+#### 修改颜色
+
+```{r}
+pheatmap(data.1, color = colorRampPalette(c("navy", "white", "firebrick3"))(50)) #修改颜色
+```
+
+#### 单元格设置
+
+```{r}
+pheatmap(data.1, border_color = 'black')#设置边框为黑色
+pheatmap(data.1, border = F) #去掉边框
+pheatmap(data.1,cellwidth = 20, cellheight = 20) #修改单元格大小
+pheatmap(data.1, border_color = "black", #边框线为黑色
+         display_numbers = TRUE,         #热图格子中显示相应的数值
+         number_color = "black",         #字体颜色为黑色
+         fontsize=10,                    #字体大小为10
+         number_format = "%.1f")         #保留一位小数
+         #fontface="italic")              #将字体设置为斜体
+#自定义，让数值大于1.5的用*显示
+pheatmap(data.1, display_numbers = matrix(ifelse(data.1 > 1.5, "*"," "), nrow(data.1)))
+```
+
+#### 图例设置
+
+```{r}
+# 设定图例显示范围，添加图例标签
+pheatmap(data.1, legend_breaks = c(-2:2), 
+    legend_labels = c("-1.0","0.0","1.0","2.0","3.0"))  
+# legend = FALSE 去掉图例
+pheatmap(data.1,legend = FALSE)
+#去除行名
+pheatmap(data.1,show_rownames = FALSE)
+#去除列名
+pheatmap(data.1, show_colnames = FALSE)
+```
+
+#### 注释设置
+
+先制作注释数据：
+
+```{r}
+anno <- c(rep('phylum1', 12), rep('phylum2', 16))
+annotation_row <- as.data.frame(anno)
+rownames(annotation_row) <- rownames(data.1)
+colnames(annotation_row) <- c('genus')
+
+annotation_col <- as.data.frame(cbind(c(rep('X1',5), rep('X2', 5)), 
+                                      c(rep(seq(1:5),2))))
+rownames(annotation_col) <- colnames(data.1)
+colnames(annotation_col) <- c('environment','species')
+
+pheatmap(data.1, annotation_row = annotation_row, annotation_col = annotation_col)
+```
+
+删除注释图例：
+
+```{r}
+pheatmap(data.1, annotation_col = annotation_col, annotation_row = annotation_row, annotation_legend = FALSE)
+```
+
+使用自定义的颜色：
+
+```{r}
+ann_colors <- list(
+  species= c("white", "tomato4"),
+   environment = c(X1 = "slateblue3", X2 = "red2"),
+  genus = c(phylum1 = "#7D26CD", phylum2 = "#E7298A")
+)
+pheatmap(data.1, annotation_row = annotation_row, annotation_col = annotation_col, 
+         annotation_colors = ann_colors[3])
+```
+
+将热图分割开：
+
+```{r}
+pheatmap(data.1, cutree_rows = 3, cutree_cols = 2)
+```
+
+使用gaps_row或gaps_col可以在指定位置添加分割，不过只有在cluster_rows取FALSE时才成立：
+
+```{r}
+pheatmap(data.1, cluster_rows = FALSE,
+         gaps_row = c(7, 10))
+```
+
+#### 自定义行列标签
+
+```{r}
+labels_row <- paste0('genus', 1:28)
+pheatmap(data.1, labels_row = labels_row)
+```
+
+#### 保存pdf
+
+```{r}
+pheatmap(data.1, annotation_row = annotation_row, 
+         annotation_col = annotation_col,
+         cellwidth = 20, cellheight = 15,
+         filename = 'D:/R/data.pdf')
+```
+
+```{r}
+result <- pheatmap(data.1, annotation_row = annotation_row, 
+         annotation_col = annotation_col,
+         cellwidth = 20, cellheight = 15,
+         filename = 'D:/R/data.pdf')
+summary(result)
+```

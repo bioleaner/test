@@ -1,0 +1,119 @@
+---
+title: "R语言读取赎金"
+author:
+  - 杨洪冰
+documentclass: ctexart
+output:
+  rticles::ctex:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+---
+
+### 文件管理
+
+对于每一个R语言项目，推荐使用一个R Project进行管理。命名方式可以使用项目名加日期来表示。在文件夹中，分为三部分数据保存：
+
+1.  R语言脚本。
+
+2.  数据。
+
+3.  图片。
+
+所以建议数据和图片单独成立文件夹，分别命名为`data`和`image`，R语言脚本可以直接放在文件夹中，与另外两个文件夹平行。
+
+![](https://bookdown.org/wangminjie/R4DS/images/Rproject.png){width="250"}
+
+### 文件读入
+
+R语言对于文件的读入有多种方法，对最基本的txt文件，可以使用`read.table()`来进行读取。该函数的选项包括：
+
+1.  文件路径。
+
+2.  header。为TRUE时使用第一行作为列名，否则函数设置列名。
+
+3.  sep。用于设置列的分隔符。
+
+4.  col.names和row.names。
+
+对于csv和tsv等文件，既可以使用baseR的函数，也可以使用readr包的`read_csv()`和`read_tsv()`函数。
+
+对于excel文件，使用readxl包的`read_xlx()`或`read_xlsx()`。
+
+![](images/paste-B3F91FFA.png){width="572"}
+
+总之，可以使用上述方法对数据进行读取。
+
+### `vroom`包
+
+这个包的好处在于它可以自动识别文件格式，因此无论是csv还是tsv都只需要：
+
+```{r message=FALSE}
+library(vroom)
+library(dplyr)
+vroom('D:/R/mushrooms.csv') %>% head()
+```
+
+除此之外，还可以批量读取文件：
+
+```{r}
+mt <- tibble::rownames_to_column(mtcars, "model")
+purrr::iwalk(
+  split(mt, mt$cyl),
+  ~ vroom_write(.x, glue::glue("mtcars_{.y}.csv"), "\t")
+)
+
+files <- fs::dir_ls(glob = "mtcars*csv")
+files
+vroom(files)
+```
+
+还可以读取和写压缩文件：
+
+```{r}
+#vroom_write(data, 'data.tsv.gz')
+#vroom('data.tsv.gz')
+```
+
+读取网页文件：
+
+```{r warning=FALSE}
+#file <- "https://raw.githubusercontent.com/r-lib/vroom/master/inst/extdata/mtcars.csv"
+#data <- vroom(file)
+```
+
+vroom还可以使用dplyr的选择语法选择列：
+
+```{r}
+vroom(files, col_select = c(model))
+#重命名选择列
+vroom(files, col_select = c(x = model, everything()))
+```
+
+![](images/paste-9EB0C0C1.png){width="400"}
+
+还可以修改变量类型，这是防止vroom判断失误。
+
+```{r}
+vroom(files, col_types = c(model = 'c'))
+```
+
+### data.table包的`fread()`函数
+
+```{r}
+data.table::fread('D:/R/patients.csv')
+```
+
+### here包
+
+这个包可以告诉我们当前目录：
+
+```{r}
+here::here() #与getwd()一致
+```
+
+除此之外，还可以告诉我们指向某个文件的路径：
+
+```{r}
+here::here('data', 'demo.csv')
+```

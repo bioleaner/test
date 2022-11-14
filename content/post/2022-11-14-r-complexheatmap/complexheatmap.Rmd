@@ -1,0 +1,19 @@
+---
+title: "complexheatmap包学习"
+author:
+  - 杨洪冰
+documentclass: ctexart
+output:
+  rticles::ctex:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+---
+
+首先导入包：
+
+```{r message=FALSE}
+library(ComplexHeatmap)
+library(tidyverse)
+colnames(iris3)
+```

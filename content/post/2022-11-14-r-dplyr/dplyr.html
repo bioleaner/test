@@ -1,0 +1,523 @@
+---
+title: "dplyr"
+author:
+  - 杨洪冰
+documentclass: ctexart
+output:
+  rticles::ctex:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+---
+
+
+
+<p>首先我们加载<code>dplyr</code>包：</p>
+<pre class="r"><code>library(dplyr)</code></pre>
+<p>这个包中含有十个强大的函数，分别是：</p>
+<ul>
+<li><p><code>mutute()</code>, <code>select()</code>, <code>rename()</code>, <code>filter()</code>.</p></li>
+<li><p><code>summarise()</code>, <code>group_by()</code>, <code>arrange()</code>.</p></li>
+<li><p><code>left_join()</code>, <code>right_join()</code>, <code>full_join()</code>.</p></li>
+</ul>
+<p>为了演示功能，加载数据集iris。</p>
+<pre class="r"><code>head(iris) #查看数据</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width Species
+## 1          5.1         3.5          1.4         0.2  setosa
+## 2          4.9         3.0          1.4         0.2  setosa
+## 3          4.7         3.2          1.3         0.2  setosa
+## 4          4.6         3.1          1.5         0.2  setosa
+## 5          5.0         3.6          1.4         0.2  setosa
+## 6          5.4         3.9          1.7         0.4  setosa</code></pre>
+<div id="新增一列mutate" class="section level3">
+<h3>新增一列<code>mutate()</code></h3>
+<p>为数据集新增一列等级：</p>
+<pre class="r"><code>level &lt;- rep(c(&#39;a&#39;, &#39;b&#39;, &#39;c&#39;),50)
+mutate(iris, level) %&gt;% head()</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width Species level
+## 1          5.1         3.5          1.4         0.2  setosa     a
+## 2          4.9         3.0          1.4         0.2  setosa     b
+## 3          4.7         3.2          1.3         0.2  setosa     c
+## 4          4.6         3.1          1.5         0.2  setosa     a
+## 5          5.0         3.6          1.4         0.2  setosa     b
+## 6          5.4         3.9          1.7         0.4  setosa     c</code></pre>
+<p><code>mutate()</code>函数只有两个参数，分别是数据框和新增列，新增列以<code>列名 = 数据</code>的形式载入，数据可以与数据框等长，也可以为1，这时为循环补齐，即新增列为常值。</p>
+<div id="mutate和向量函数" class="section level4">
+<h4><code>mutate()</code>和向量函数</h4>
+<p>自定义一个函数：</p>
+<pre class="r"><code>squ &lt;- function(x) {
+  x^2
+}
+iris %&gt;% mutate(new = squ(Sepal.Length)) %&gt;% head()</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width Species   new
+## 1          5.1         3.5          1.4         0.2  setosa 26.01
+## 2          4.9         3.0          1.4         0.2  setosa 24.01
+## 3          4.7         3.2          1.3         0.2  setosa 22.09
+## 4          4.6         3.1          1.5         0.2  setosa 21.16
+## 5          5.0         3.6          1.4         0.2  setosa 25.00
+## 6          5.4         3.9          1.7         0.4  setosa 29.16</code></pre>
+</div>
+</div>
+<div id="选择列select" class="section level3">
+<h3>选择列<code>select()</code></h3>
+<p>可以直接根据列名选择列：</p>
+<pre class="r"><code>iris %&gt;% select(Sepal.Length) %&gt;% head()</code></pre>
+<pre><code>##   Sepal.Length
+## 1          5.1
+## 2          4.9
+## 3          4.7
+## 4          4.6
+## 5          5.0
+## 6          5.4</code></pre>
+<pre class="r"><code>##多选几列
+iris %&gt;% select(Sepal.Length, Sepal.Width) %&gt;% head()</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width
+## 1          5.1         3.5
+## 2          4.9         3.0
+## 3          4.7         3.2
+## 4          4.6         3.1
+## 5          5.0         3.6
+## 6          5.4         3.9</code></pre>
+<p>如果不想要某列，可以在前面加<code>-</code>或<code>!</code>：</p>
+<pre class="r"><code>iris %&gt;% select(-Sepal.Length) %&gt;% head()</code></pre>
+<pre><code>##   Sepal.Width Petal.Length Petal.Width Species
+## 1         3.5          1.4         0.2  setosa
+## 2         3.0          1.4         0.2  setosa
+## 3         3.2          1.3         0.2  setosa
+## 4         3.1          1.5         0.2  setosa
+## 5         3.6          1.4         0.2  setosa
+## 6         3.9          1.7         0.4  setosa</code></pre>
+<p>除了按照列名选择列，还可以按照索引值选择：</p>
+<pre class="r"><code>iris %&gt;% select(1:3) %&gt;% head()#选择前三列</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length
+## 1          5.1         3.5          1.4
+## 2          4.9         3.0          1.4
+## 3          4.7         3.2          1.3
+## 4          4.6         3.1          1.5
+## 5          5.0         3.6          1.4
+## 6          5.4         3.9          1.7</code></pre>
+<p>还可以按照列的特征选择：</p>
+<pre class="r"><code>iris %&gt;% select(starts_with(&#39;Sepal&#39;)) %&gt;% head() #按开头选择</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width
+## 1          5.1         3.5
+## 2          4.9         3.0
+## 3          4.7         3.2
+## 4          4.6         3.1
+## 5          5.0         3.6
+## 6          5.4         3.9</code></pre>
+<pre class="r"><code>iris %&gt;% select(ends_with(&#39;Length&#39;)) %&gt;% head()#按结尾选择</code></pre>
+<pre><code>##   Sepal.Length Petal.Length
+## 1          5.1          1.4
+## 2          4.9          1.4
+## 3          4.7          1.3
+## 4          4.6          1.5
+## 5          5.0          1.4
+## 6          5.4          1.7</code></pre>
+<pre class="r"><code>iris %&gt;% select(contains(&#39;e&#39;)) %&gt;% head()#按包含选择</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width Species
+## 1          5.1         3.5          1.4         0.2  setosa
+## 2          4.9         3.0          1.4         0.2  setosa
+## 3          4.7         3.2          1.3         0.2  setosa
+## 4          4.6         3.1          1.5         0.2  setosa
+## 5          5.0         3.6          1.4         0.2  setosa
+## 6          5.4         3.9          1.7         0.4  setosa</code></pre>
+<pre class="r"><code>iris %&gt;% select(where(is.double)) %&gt;% head()#按变量类型选择</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width
+## 1          5.1         3.5          1.4         0.2
+## 2          4.9         3.0          1.4         0.2
+## 3          4.7         3.2          1.3         0.2
+## 4          4.6         3.1          1.5         0.2
+## 5          5.0         3.6          1.4         0.2
+## 6          5.4         3.9          1.7         0.4</code></pre>
+<p>除此之外，还可以使用<code>select()</code>更换列顺序：</p>
+<pre class="r"><code>#将speices提到最前面
+iris %&gt;% select(Species, everything()) %&gt;% head()</code></pre>
+<pre><code>##   Species Sepal.Length Sepal.Width Petal.Length Petal.Width
+## 1  setosa          5.1         3.5          1.4         0.2
+## 2  setosa          4.9         3.0          1.4         0.2
+## 3  setosa          4.7         3.2          1.3         0.2
+## 4  setosa          4.6         3.1          1.5         0.2
+## 5  setosa          5.0         3.6          1.4         0.2
+## 6  setosa          5.4         3.9          1.7         0.4</code></pre>
+</div>
+<div id="rename修改列名" class="section level3">
+<h3><code>rename()</code>修改列名</h3>
+<p>用<code>rename()</code>修改列名的方法是<code>rename(.data, new_name = old_name)</code>。</p>
+<pre class="r"><code>iris %&gt;% rename(x = Species) %&gt;% head()</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width      x
+## 1          5.1         3.5          1.4         0.2 setosa
+## 2          4.9         3.0          1.4         0.2 setosa
+## 3          4.7         3.2          1.3         0.2 setosa
+## 4          4.6         3.1          1.5         0.2 setosa
+## 5          5.0         3.6          1.4         0.2 setosa
+## 6          5.4         3.9          1.7         0.4 setosa</code></pre>
+</div>
+<div id="filter选择行" class="section level3">
+<h3><code>filter()</code>选择行</h3>
+<p>可以根据条件，保留符合条件的行：</p>
+<pre class="r"><code>iris %&gt;% filter(Sepal.Length &gt; 5.0) %&gt;% head()</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width Species
+## 1          5.1         3.5          1.4         0.2  setosa
+## 2          5.4         3.9          1.7         0.4  setosa
+## 3          5.4         3.7          1.5         0.2  setosa
+## 4          5.8         4.0          1.2         0.2  setosa
+## 5          5.7         4.4          1.5         0.4  setosa
+## 6          5.4         3.9          1.3         0.4  setosa</code></pre>
+<p>这里的运算符包括<code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code>, <code>==</code> (equal), <code>!=</code> (not equal), <code>%in%</code>, <a href="https://rdrr.io/r/base/NA.html"><code>is.na()</code></a> 和 <code>!is.na()</code> 。</p>
+<p>也可以指定多个条件进行筛选，两个条件需要用<code>,</code>分隔：</p>
+<pre class="r"><code>iris %&gt;% filter(Sepal.Length &gt; 5.0, Species == &#39;setosa&#39;) %&gt;% head()</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width Species
+## 1          5.1         3.5          1.4         0.2  setosa
+## 2          5.4         3.9          1.7         0.4  setosa
+## 3          5.4         3.7          1.5         0.2  setosa
+## 4          5.8         4.0          1.2         0.2  setosa
+## 5          5.7         4.4          1.5         0.4  setosa
+## 6          5.4         3.9          1.3         0.4  setosa</code></pre>
+<p>也可以使用布尔运算符：<code>&amp;</code>, <code>|</code>, <code>!</code>，但是只需要写一个就可以。</p>
+<pre class="r"><code>iris %&gt;% filter(Sepal.Length &gt; 5.0 | Species == &#39;setosa&#39;) %&gt;% head()</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width Species
+## 1          5.1         3.5          1.4         0.2  setosa
+## 2          4.9         3.0          1.4         0.2  setosa
+## 3          4.7         3.2          1.3         0.2  setosa
+## 4          4.6         3.1          1.5         0.2  setosa
+## 5          5.0         3.6          1.4         0.2  setosa
+## 6          5.4         3.9          1.7         0.4  setosa</code></pre>
+<p><code>%in%</code>是一个很有用的运算符：</p>
+<pre class="r"><code>iris %&gt;% filter(Species %in% c(&#39;setosa&#39;, &#39;virginica&#39;)) %&gt;% head()</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width Species
+## 1          5.1         3.5          1.4         0.2  setosa
+## 2          4.9         3.0          1.4         0.2  setosa
+## 3          4.7         3.2          1.3         0.2  setosa
+## 4          4.6         3.1          1.5         0.2  setosa
+## 5          5.0         3.6          1.4         0.2  setosa
+## 6          5.4         3.9          1.7         0.4  setosa</code></pre>
+<p><code>filter()</code>的条件也可以配合一些统计函数：</p>
+<pre class="r"><code>#选择Sepal.Length最大行
+iris %&gt;% filter(Sepal.Length == max(Sepal.Length)) %&gt;% head()</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width   Species
+## 1          7.9         3.8          6.4           2 virginica</code></pre>
+<pre class="r"><code>#选择Sepal.Length大于平均值的行
+iris %&gt;% filter(Sepal.Length &gt; mean(Sepal.Length)) %&gt;% head()</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width    Species
+## 1          7.0         3.2          4.7         1.4 versicolor
+## 2          6.4         3.2          4.5         1.5 versicolor
+## 3          6.9         3.1          4.9         1.5 versicolor
+## 4          6.5         2.8          4.6         1.5 versicolor
+## 5          6.3         3.3          4.7         1.6 versicolor
+## 6          6.6         2.9          4.6         1.3 versicolor</code></pre>
+</div>
+<div id="统计汇总summarise" class="section level3">
+<h3>统计汇总<code>summarise()</code></h3>
+<p>这个函数往往与其他函数配合使用：</p>
+<pre class="r"><code>#计算Sepal.Length列的均值和标准差
+iris %&gt;% 
+  summarise(mean = mean(Sepal.Length), 
+            sd = sd(Sepal.Length),
+            n = n(),
+            sum = sum(Sepal.Length))</code></pre>
+<pre><code>##       mean        sd   n   sum
+## 1 5.843333 0.8280661 150 876.5</code></pre>
+<p><code>summarise()</code>函数单独用并不出色，与<code>group_by()</code>连用用于分组统计。</p>
+</div>
+<div id="分组统计group_by" class="section level3">
+<h3>分组统计<code>group_by()</code></h3>
+<p>将上述计算按species列分组：</p>
+<pre class="r"><code>iris %&gt;% 
+  group_by(Species) %&gt;% 
+  summarise(mean = mean(Sepal.Length), 
+            sd = sd(Sepal.Length),
+            n = n(),
+            sum = sum(Sepal.Length))</code></pre>
+<pre><code>## # A tibble: 3 × 5
+##   Species     mean    sd     n   sum
+##   &lt;fct&gt;      &lt;dbl&gt; &lt;dbl&gt; &lt;int&gt; &lt;dbl&gt;
+## 1 setosa      5.01 0.352    50  250.
+## 2 versicolor  5.94 0.516    50  297.
+## 3 virginica   6.59 0.636    50  329.</code></pre>
+</div>
+<div id="排序arrange" class="section level3">
+<h3>排序<code>arrange()</code></h3>
+<p>比如说按照Sepal.Length排序：</p>
+<pre class="r"><code>iris %&gt;% 
+  arrange(Sepal.Length) %&gt;% head()</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width Species
+## 1          4.3         3.0          1.1         0.1  setosa
+## 2          4.4         2.9          1.4         0.2  setosa
+## 3          4.4         3.0          1.3         0.2  setosa
+## 4          4.4         3.2          1.3         0.2  setosa
+## 5          4.5         2.3          1.3         0.3  setosa
+## 6          4.6         3.1          1.5         0.2  setosa</code></pre>
+<p>可以发现默认为升序排列，即从小到大排列。如果需要降序排列，则有两种方法：</p>
+<ol style="list-style-type: decimal">
+<li><p>在排序变量前加-。</p></li>
+<li><p>使用<code>desc()</code>函数。</p></li>
+</ol>
+<pre class="r"><code>iris %&gt;% 
+  arrange(-Sepal.Length) %&gt;% head()</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width   Species
+## 1          7.9         3.8          6.4         2.0 virginica
+## 2          7.7         3.8          6.7         2.2 virginica
+## 3          7.7         2.6          6.9         2.3 virginica
+## 4          7.7         2.8          6.7         2.0 virginica
+## 5          7.7         3.0          6.1         2.3 virginica
+## 6          7.6         3.0          6.6         2.1 virginica</code></pre>
+<pre class="r"><code>iris %&gt;% 
+  arrange(desc(Sepal.Length)) %&gt;% head()</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width   Species
+## 1          7.9         3.8          6.4         2.0 virginica
+## 2          7.7         3.8          6.7         2.2 virginica
+## 3          7.7         2.6          6.9         2.3 virginica
+## 4          7.7         2.8          6.7         2.0 virginica
+## 5          7.7         3.0          6.1         2.3 virginica
+## 6          7.6         3.0          6.6         2.1 virginica</code></pre>
+<p>可以实现相同的效果。</p>
+<p>也可以对多个变量排序，谁在前面谁更首先排序：</p>
+<pre class="r"><code>iris %&gt;% 
+  arrange(desc(Sepal.Length), Sepal.Width) %&gt;% head()</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width   Species
+## 1          7.9         3.8          6.4         2.0 virginica
+## 2          7.7         2.6          6.9         2.3 virginica
+## 3          7.7         2.8          6.7         2.0 virginica
+## 4          7.7         3.0          6.1         2.3 virginica
+## 5          7.7         3.8          6.7         2.2 virginica
+## 6          7.6         3.0          6.6         2.1 virginica</code></pre>
+</div>
+<div id="左连接left_join" class="section level3">
+<h3>左连接<code>left_join()</code></h3>
+<p>创造一个数据框，是iris按种类分组的Sepal.Length平均值：</p>
+<pre class="r"><code>df1 &lt;- iris %&gt;% 
+  group_by(Species) %&gt;% 
+  summarise(mean = mean(Sepal.Length))
+df1</code></pre>
+<pre><code>## # A tibble: 3 × 2
+##   Species     mean
+##   &lt;fct&gt;      &lt;dbl&gt;
+## 1 setosa      5.01
+## 2 versicolor  5.94
+## 3 virginica   6.59</code></pre>
+<p>创造新数据：</p>
+<pre class="r"><code>df2 &lt;- tibble(Species = c(unique(iris$Species)), y = c(11,12,13))
+df2</code></pre>
+<pre><code>## # A tibble: 3 × 2
+##   Species        y
+##   &lt;fct&gt;      &lt;dbl&gt;
+## 1 setosa        11
+## 2 versicolor    12
+## 3 virginica     13</code></pre>
+<p>将两个数据框连接，由于是通过<code>Species</code>列连接，指定<code>by = 'Species'</code>。</p>
+<pre class="r"><code>df1 %&gt;% left_join(df2, by = &#39;Species&#39;)</code></pre>
+<pre><code>## # A tibble: 3 × 3
+##   Species     mean     y
+##   &lt;fct&gt;      &lt;dbl&gt; &lt;dbl&gt;
+## 1 setosa      5.01    11
+## 2 versicolor  5.94    12
+## 3 virginica   6.59    13</code></pre>
+<p>这种连接的好处可以保存一个数据框的完整信息，另一个未匹配的将会被丢失。</p>
+<p>使用<code>full_join()</code>可以保存所有数据，哪边不匹配在哪边填充缺失值。</p>
+<p><code>inner_join()</code>内连接只保留匹配的，其余均丢失。</p>
+<p>半连接<code>semi_join()</code>保留与右侧一致的，反连接<code>anti_join()</code>丢弃与右侧一致的。</p>
+</div>
+<div id="slice" class="section level3">
+<h3><code>slice()</code></h3>
+<p><code>slice()</code>可以选择n行：</p>
+<pre class="r"><code>iris %&gt;% slice(1)</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width Species
+## 1          5.1         3.5          1.4         0.2  setosa</code></pre>
+<p>除此之外，还可以使用<code>slice_max()</code>等函数：</p>
+<pre class="r"><code>iris %&gt;% slice_max(Sepal.Length)</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width   Species
+## 1          7.9         3.8          6.4           2 virginica</code></pre>
+<pre class="r"><code>iris %&gt;% slice_sample(n = 1)</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width Species
+## 1          4.8         3.4          1.6         0.2  setosa</code></pre>
+</div>
+<div id="seperate" class="section level3">
+<h3><code>seperate()</code></h3>
+<p>可以将某些按照某种分隔符分割的列拆分：</p>
+<pre class="r"><code>tb &lt;- tibble::tribble(
+  ~day, ~price,
+  1,   &quot;30-45&quot;,
+  2,   &quot;40-95&quot;,
+  3,   &quot;89-65&quot;,
+  4,   &quot;45-63&quot;,
+  5,   &quot;52-42&quot;
+)
+tb %&gt;% tidyr::separate(price, into = c(&#39;low&#39;, &#39;high&#39;), sep = &#39;-&#39;)</code></pre>
+<pre><code>## # A tibble: 5 × 3
+##     day low   high 
+##   &lt;dbl&gt; &lt;chr&gt; &lt;chr&gt;
+## 1     1 30    45   
+## 2     2 40    95   
+## 3     3 89    65   
+## 4     4 45    63   
+## 5     5 52    42</code></pre>
+</div>
+<div id="unite" class="section level3">
+<h3><code>unite()</code></h3>
+<p>与separate相反，合并列</p>
+<pre class="r"><code>tb %&gt;% 
+  tidyr::separate(price, into = c(&#39;low&#39;, &#39;high&#39;), sep = &#39;-&#39;) %&gt;% 
+  tidyr::unite(col = price, c(&#39;low&#39;, &#39;high&#39;), sep = &#39;:&#39;,
+        remove = FALSE) #是否除去原列</code></pre>
+<pre><code>## # A tibble: 5 × 4
+##     day price low   high 
+##   &lt;dbl&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;
+## 1     1 30:45 30    45   
+## 2     2 40:95 40    95   
+## 3     3 89:65 89    65   
+## 4     4 45:63 45    63   
+## 5     5 52:42 52    42</code></pre>
+</div>
+<div id="distinct" class="section level3">
+<h3><code>distinct()</code></h3>
+<p>这个函数返回未重复的行：</p>
+<pre class="r"><code>df &lt;- tibble::tribble(
+  ~x, ~y, ~z,
+  1, 1, 1,
+  1, 1, 2,
+  1, 1, 1,
+  2, 1, 2,
+  2, 2, 3,
+  3, 3, 1
+)
+df</code></pre>
+<pre><code>## # A tibble: 6 × 3
+##       x     y     z
+##   &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
+## 1     1     1     1
+## 2     1     1     2
+## 3     1     1     1
+## 4     2     1     2
+## 5     2     2     3
+## 6     3     3     1</code></pre>
+<pre class="r"><code>df %&gt;% distinct() #只有所有列都相同才被舍去</code></pre>
+<pre><code>## # A tibble: 5 × 3
+##       x     y     z
+##   &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
+## 1     1     1     1
+## 2     1     1     2
+## 3     2     1     2
+## 4     2     2     3
+## 5     3     3     1</code></pre>
+<pre class="r"><code>df %&gt;% distinct(x) #只舍去x的重复</code></pre>
+<pre><code>## # A tibble: 3 × 1
+##       x
+##   &lt;dbl&gt;
+## 1     1
+## 2     2
+## 3     3</code></pre>
+<p><code>n_distinct()</code>处理的对象是vector；功能是<strong>统计不同的元素有多少个</strong>；返回一个数值：</p>
+<pre class="r"><code>c(1, 1, 1, 2, 2, 1, 3, 3) %&gt;% n_distinct()</code></pre>
+<pre><code>## [1] 3</code></pre>
+<pre class="r"><code>df$x %&gt;% n_distinct()</code></pre>
+<pre><code>## [1] 3</code></pre>
+<pre class="r"><code>df %&gt;% 
+  group_by(x) %&gt;% 
+  summarise(
+    n = n(),
+    n_dis = n_distinct(z)
+  )</code></pre>
+<pre><code>## # A tibble: 3 × 3
+##       x     n n_dis
+##   &lt;dbl&gt; &lt;int&gt; &lt;int&gt;
+## 1     1     3     2
+## 2     2     2     2
+## 3     3     1     1</code></pre>
+<p><code>count()</code></p>
+<p>这个和分组汇总类似：</p>
+<pre class="r"><code>iris %&gt;% 
+  group_by(Species) %&gt;% 
+  summarise(
+    n = n()
+  )</code></pre>
+<pre><code>## # A tibble: 3 × 2
+##   Species        n
+##   &lt;fct&gt;      &lt;int&gt;
+## 1 setosa        50
+## 2 versicolor    50
+## 3 virginica     50</code></pre>
+<pre class="r"><code>iris %&gt;% 
+  count(Species)</code></pre>
+<pre><code>##      Species  n
+## 1     setosa 50
+## 2 versicolor 50
+## 3  virginica 50</code></pre>
+<p>可以统计变量组合的数量：</p>
+<pre class="r"><code>library(ggplot2)
+mpg %&gt;% count(manufacturer, class) %&gt;% head()</code></pre>
+<pre><code>## # A tibble: 6 × 3
+##   manufacturer class       n
+##   &lt;chr&gt;        &lt;chr&gt;   &lt;int&gt;
+## 1 audi         compact    15
+## 2 audi         midsize     3
+## 3 chevrolet    2seater     5
+## 4 chevrolet    midsize     5
+## 5 chevrolet    suv         9
+## 6 dodge        minivan    11</code></pre>
+<p>可以构建新变量并完成统计：</p>
+<pre class="r"><code>iris %&gt;% 
+  count(Sepal.Length = Sepal.Length &gt; 5.0)</code></pre>
+<pre><code>##   Sepal.Length   n
+## 1        FALSE  32
+## 2         TRUE 118</code></pre>
+<pre class="r"><code>#等价于
+iris %&gt;% 
+  filter(Sepal.Length &gt; 5.0) %&gt;% 
+  summarise(
+    n = n()
+  )</code></pre>
+<pre><code>##     n
+## 1 118</code></pre>
+</div>
+<div id="across" class="section level3">
+<h3><code>across()</code></h3>
+<p>同时计算Sepal.Length和Sepal.Width的平均值：</p>
+<pre class="r"><code>iris %&gt;% 
+  summarise(
+    mean_length = mean(Sepal.Length),
+    mean_width = mean(Sepal.Width)
+  )</code></pre>
+<pre><code>##   mean_length mean_width
+## 1    5.843333   3.057333</code></pre>
+<pre class="r"><code>iris %&gt;% 
+  summarise(across(c(Sepal.Length, Sepal.Width),mean))</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width
+## 1     5.843333    3.057333</code></pre>
+<p>还可以简化：</p>
+<pre class="r"><code>iris %&gt;% 
+  summarise(across(starts_with(&#39;Sepal&#39;), mean))</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width
+## 1     5.843333    3.057333</code></pre>
+<p><code>across()</code>函数用于<code>mutate()</code>和<code>summarise()</code>中，对多列执行相同的操作。</p>
+<p>比如说进行数据的标准化：</p>
+<pre class="r"><code>std &lt;- function(x) {
+  (x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE)
+}
+iris %&gt;% 
+  summarise(across(ends_with(&#39;th&#39;), std)) %&gt;% 
+  head()</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width
+## 1   -0.8976739  1.01560199    -1.335752   -1.311052
+## 2   -1.1392005 -0.13153881    -1.335752   -1.311052
+## 3   -1.3807271  0.32731751    -1.392399   -1.311052
+## 4   -1.5014904  0.09788935    -1.279104   -1.311052
+## 5   -1.0184372  1.24503015    -1.335752   -1.311052
+## 6   -0.5353840  1.93331463    -1.165809   -1.048667</code></pre>
+<p>或者更简洁：</p>
+<pre class="r"><code>iris %&gt;% 
+  summarise(across(ends_with(&#39;th&#39;), ~(.x-mean(.x)) / sd(.x))) %&gt;% 
+  head()</code></pre>
+<pre><code>##   Sepal.Length Sepal.Width Petal.Length Petal.Width
+## 1   -0.8976739  1.01560199    -1.335752   -1.311052
+## 2   -1.1392005 -0.13153881    -1.335752   -1.311052
+## 3   -1.3807271  0.32731751    -1.392399   -1.311052
+## 4   -1.5014904  0.09788935    -1.279104   -1.311052
+## 5   -1.0184372  1.24503015    -1.335752   -1.311052
+## 6   -0.5353840  1.93331463    -1.165809   -1.048667</code></pre>
+<p>对多列进行多个统计函数：</p>
+<pre class="r"><code>iris %&gt;% 
+  summarise(across(starts_with(&#39;Sepal&#39;), 
+                   list(mean = mean, sd = sd)))</code></pre>
+<pre><code>##   Sepal.Length_mean Sepal.Length_sd Sepal.Width_mean Sepal.Width_sd
+## 1          5.843333       0.8280661         3.057333      0.4358663</code></pre>
+</div>

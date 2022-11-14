@@ -1,0 +1,799 @@
+---
+title: "数据可视化基础"
+author:
+  - 杨洪冰
+documentclass: ctexart
+output:
+  rticles::ctex:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+---
+
+## 数据可视化基础
+
+```{r}
+library(ggplot2)
+library(patchwork)
+```
+
+ggplot2包包括九个部件：
+
+-   数据
+
+-   映射
+
+-   几何形状
+
+-   统计变换（state）
+
+-   标度（scale）
+
+-   坐标系（coord）
+
+-   分面（facet）
+
+-   主题（theme）
+
+-   存储和输出（output）
+
+前三个是必须的，后面一般为默认，可以根据自己的需要进行更改。
+
+### 数据
+
+数据是以数据框或tibble的形式存储的。
+
+### 映射
+
+映射所需的图形元素在数据中必须是一列，在不同的性状中可以映射出不同的属性，但除极个别性状，大部分都需要x，y，颜色。如果想要将全局使用一种颜色，可以在映射外面使用`color=xxx`来表示。如果写在映射里面，往往会出现以外的情况，因为映射不会将写入的字符串识别成颜色。所有映射的图形属性包括：
+
+-   x：x轴方向的位置。
+
+-   y：y轴方向的位置。
+
+-   color：点或线的颜色，如果是条形图这种需要填充的为fill，边框为color
+
+-   size：点或线的大小。
+
+-   shape：点或线的性状。
+
+-   alpha：点或线的透明度。
+
+R语言的数据类型包括字符串型、因子型、数值型、逻辑型、日期型等，ggplot2会将数值型看成连续变量，将日期型看成日期变量，剩下的都是离散变量。
+
+使用相应数据来进行演示：
+
+```{r warning=FALSE}
+library(gapminder)
+gapminder
+```
+
+首先检查数据是否缺失：
+
+```{r}
+gapminder %>% 
+  summarise(across(everything(), ~ sum(is.na(.x))))
+```
+
+可以看出来所有的列都没有缺失值，接下来就考虑用什么图形展示这些数据并对这些数据进行探索。
+
+#### 柱状图
+
+这种图形主要适用于一个离散型变量：
+
+```{r}
+gapminder %>% 
+  ggplot()+
+  geom_bar(aes(x = continent))
+gapminder %>%
+  ggplot(aes(x = reorder(continent, continent, length))) +
+  geom_bar()
+gapminder %>%
+  ggplot(aes(x = reorder(continent, continent, length))) +
+  geom_bar()+
+  coord_flip()
+```
+
+其中可以先进行统计再画图：
+
+```{r}
+gapminder %>% 
+  group_by(continent) %>% 
+  summarise(num = n()) %>% 
+  ggplot()+
+  geom_col(aes(x = continent, y = num, fill = continent))+
+  ggsci::scale_fill_npg()
+```
+
+#### 直方图
+
+常用于一个连续变量：
+
+```{r}
+gapminder %>% 
+  ggplot()+
+  geom_histogram(aes(x = lifeExp))
+gapminder %>% 
+  ggplot()+
+  geom_histogram(aes(x = lifeExp, fill = continent))
+```
+
+`geom_histogram()`默认使用`position = 'stack'`，可以进行更换：
+
+```{r}
+gapminder %>% 
+  ggplot()+
+  geom_histogram(aes(x = lifeExp, fill = continent), 
+                 position = 'identity')
+gapminder %>% 
+  ggplot()+
+  geom_histogram(aes(x = lifeExp, fill = continent), 
+                 position = 'dodge')
+```
+
+#### 频次图
+
+用于一个连续变量：
+
+```{r}
+gapminder %>% 
+  ggplot()+
+  geom_freqpoly(aes(x = lifeExp, color = continent))
+```
+
+#### 密度图
+
+用于一个连续变量：
+
+```{r}
+gapminder %>% 
+  ggplot()+
+  geom_density(aes(x = lifeExp, color = continent))
+```
+
+其中`adjust = n`用于调节binwidth。默认为1。
+
+```{r}
+gapminder %>% 
+  ggplot()+
+  geom_density(aes(x = lifeExp, color = continent), adjust = 0.2)
+gapminder %>% 
+  ggplot()+
+  geom_density(aes(x = lifeExp, fill = continent), alpha = 0.5)
+```
+
+直方图和密度图画在一起，注意`y = stat(density)`表示y是由x新生成的变量，这是一种固定写法，类似的还有`stat(count)`, `stat(level)`
+
+```{r}
+gapminder %>% 
+  ggplot(aes(x = lifeExp, y = stat(density)))+
+  geom_histogram(aes(fill = continent))+
+  geom_density()
+```
+
+#### 箱线图（小提琴图）
+
+一个连续型变量和一个离散型变量：
+
+```{r}
+gapminder %>% 
+  ggplot(aes(x = year, y = lifeExp))+
+  geom_boxplot()
+```
+
+但是发现与预想不一样，只出现了一个箱，原因是ggplot将`year`识别为连续型变量，因此：
+
+```{r}
+gapminder %>% 
+  ggplot(aes(x = factor(year), y = lifeExp))+
+  geom_boxplot()
+```
+
+也可以明确指定分组变量：
+
+```{r}
+gapminder %>% 
+  ggplot(aes(x = year, y = lifeExp))+
+  geom_violin(aes(group = year, fill = factor(year)))+
+  ggsci::scale_fill_npg()+
+  geom_jitter(alpha = 0.5)+
+  geom_smooth(se = F) #不显示置信区间
+```
+
+#### 抖散图
+
+这是处理点重叠的一种方法，如果不打散的话，就会呈现下面的情况：
+
+```{r}
+gapminder %>% 
+  ggplot(aes(x = continent, y = lifeExp))+
+  geom_point()
+gapminder %>% 
+  ggplot(aes(x = continent, y = lifeExp))+
+  geom_jitter()
+gapminder %>% 
+  ggplot(aes(x = continent, y = lifeExp)) +
+  geom_boxplot()
+gapminder %>% 
+  ggplot(aes(x = continent, y = lifeExp)) +
+  geom_jitter()+
+  stat_summary(fun.y = median, color = 'red', geom = 'point',
+               size = 5)
+gapminder %>% 
+  ggplot(aes(x = reorder(continent, lifeExp), y = lifeExp)) +
+  geom_jitter()+
+  stat_summary(fun.y = median, color = 'red', geom = 'point',
+               size = 5)
+gapminder %>%
+  ggplot(aes(x = continent, y = lifeExp)) +
+  geom_violin(
+    trim = FALSE,
+    alpha = 0.5
+  ) +
+  stat_summary(
+    fun.y = mean,
+    fun.ymax = function(x) {
+      mean(x) + sd(x)
+    },
+    fun.ymin = function(x) {
+      mean(x) - sd(x)
+    },
+    geom = "pointrange"
+  )
+```
+
+#### 山峦图
+
+用于一个离散变量加一个连续变量：
+
+```{r}
+gapminder %>% 
+  ggplot(aes(x = lifeExp, y = continent, fill = continent))+
+  ggridges::geom_density_ridges()
+# https://learnui.design/tools/data-color-picker.html#palette
+gapminder %>%
+  ggplot(aes(
+    x = lifeExp,
+    y = continent,
+    fill = continent
+  )) +
+  ggridges::geom_density_ridges() +
+  scale_fill_manual(
+    values = c("#003f5c", "#58508d", "#bc5090", "#ff6361", "#ffa600")
+  )
+```
+
+#### 散点图
+
+用于两个连续型变量：
+
+```{r}
+gapminder %>%
+  ggplot(aes(x = gdpPercap, y = lifeExp)) +
+  geom_point()
+gapminder %>%
+  ggplot(aes(x = log(gdpPercap), y = lifeExp)) +
+  geom_point()
+gapminder %>%
+  ggplot(aes(x = gdpPercap, y = lifeExp)) +
+  geom_point() +
+  scale_x_log10() # A better way to log transform
+```
+
+#### 点线图
+
+```{r}
+gapminder %>%
+  filter(continent == "Asia" & year == 2007) %>%
+  ggplot(aes(x = lifeExp, y = country)) +
+  geom_point()
+gapminder %>%
+  filter(continent == "Asia" & year == 2007) %>%
+  ggplot(aes(
+    x = lifeExp,
+    y = reorder(country, lifeExp)
+  )) +
+  geom_point(color = "blue", size = 2) +
+  geom_segment(aes(
+    x = 40,
+    xend = lifeExp,
+    y = reorder(country, lifeExp),
+    yend = reorder(country, lifeExp)
+  ),
+  color = "lightgrey"
+  ) +
+  labs(
+    x = "Life Expectancy (years)",
+    y = "",
+    title = "Life Expectancy by Country",
+    subtitle = "GapMinder data for Asia - 2007"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+```
+
+### 标度
+
+标度是控制着数据从数据到图形属性映射的函数，每一种标度都是从数据空间的某个区域（标度的定义域）到图形属性空间的某个区域（标度的值域）的一个函数。
+
+标度是用于调整数据映射的图形属性。在ggplot2中，每个属性都有默认的标度，如果对标度不满意可以进行修改：如系统默认'a'为红色，'b'为蓝色，我们却想修改'a'为橙色，'b'为紫色。在一般作图中，未使用到标度即表示标度使用默认值，如：
+
+```{r}
+mpg %>% 
+  ggplot(aes(x = displ, y = hwy)) + 
+  geom_point(aes(colour = class)) 
+```
+
+可以看到，没有指定任何标度，做出的图也十分美观，但是如果使用标度表示即为：
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy))+
+  geom_point(aes(color = class))+
+  scale_x_continuous()+
+  scale_y_continuous()+
+  scale_color_discrete()
+```
+
+可以发现，这里做的图与默认标度一致，因此使用默认标度可以大大减轻我们的工作量，当然，如果不满意默认值可以手动调整或改写标度：
+
+```{r}
+ggplot(mpg, aes(x = displ, y = hwy))+
+  geom_point(aes(color = class))+
+  scale_x_continuous(name = 'This is x axis')+
+  scale_y_continuous(name = 'This is y axis')+
+  scale_color_brewer()
+```
+
+这里将x和y轴的主标签修改，并将color从之前的调色板更换为渐变色。
+
+![](images/ggplot2-scales.png)
+
+#### 标度体系
+
+容易从上面的例子观察到，标度函数是由_分隔成的三部分组成的，第一部分都是'scale'，第二部分则是视觉属性名，如x, y, color, shape等，第三部分是标度名，如continuous, discrete,brewer等。具体所有值如下：
+
+![](images/ggplot2_scales_cheat.jpg)
+
+每一个标度函数都有着丰富的参数，以`scale_colour_manual()`为例：
+
+```{r include=FALSE}
+scale_colour_manual(
+  palette = function(), 
+  limits = NULL,
+  name = waiver(),
+  labels = waiver(),
+  breaks = waiver(),
+  minor_breaks = waiver(),
+  values = waiver(),
+  ...
+)
+```
+
+-   name：坐标轴和图例的名字，可以使用NULL去除名字显示。
+
+-   limits：坐标或图例范围区间，连续型：`c(1,100)`，离散型：`c('a', 'b', 'c')`。
+
+-   breaks：控制显示在坐标轴或图例上的值。
+
+-   labels：坐标或图例的间隔标签，可以人工指定字符型向量，与breaks提供的一一对应或者一个函数，输入breaks的向量，NULL为去掉标签。
+
+#### 举例
+
+```{r}
+newgapdata <- gapminder %>% 
+  group_by(continent, country) %>% 
+  summarise(
+    across(c(lifeExp, gdpPercap, pop), mean)
+  )
+newgapdata
+newgapdata %>% 
+  ggplot(aes(x = gdpPercap, y = lifeExp))+
+  geom_point(aes(color = continent, size = pop))
+newgapdata %>% 
+  ggplot(aes(x = gdpPercap, y = lifeExp))+
+  geom_point(aes(color = continent, size = pop))+
+  scale_x_log10(breaks = c(500,1000,3000,10000,30000), labels = scales::dollar)
+newgapdata %>% 
+  ggplot(aes(x = gdpPercap, y = lifeExp)) +
+    geom_point(aes(color = continent, size = pop)) +
+    scale_x_log10(
+      name = "GDP per capita",
+      breaks = c(500, 1000, 3000, 10000, 30000),
+      labels = scales::unit_format(unit = "dollar"))
+newgapdata %>% 
+  ggplot(aes(x = gdpPercap, y = lifeExp)) +
+    geom_point(aes(color = continent, size = pop)) +
+    scale_x_log10() +
+    scale_color_viridis_d()
+newgapdata %>% 
+  ggplot(aes(x = gdpPercap, y = lifeExp)) +
+    geom_point(aes(color = continent, size = pop)) +
+    scale_x_log10() +
+    scale_color_brewer(type = "qual", palette = "Set1")
+```
+
+那么标度和主题的区别在什么地方呢，主题风格不会增加标签也不会改变变量的范围，主题只会改变字体、大小、颜色等。
+
+### 主题
+
+主题的设置主要通过`theme(element_name =element_function())`来设置，这里的`element_function()`主要有四种：
+
+-   `element_text()`：控制标签和标题的字体风格。
+
+-   `element_line()`：控制线条和线段的颜色或类型。
+
+-   `element_rect()`：控制背景矩形的颜色或边界线条类型。
+
+-   `element_blank()`：删除对应部分的主题设置。
+
+```{r}
+df <- mpg %>% 
+  as_tibble() %>% 
+  filter(class != "2seater", manufacturer %in% c("toyota", "volkswagen"))
+df
+df %>%
+  ggplot(aes(x = displ, y = hwy, color = factor(cyl))) +
+  geom_point() +
+  facet_grid(vars(manufacturer), vars(class)) +
+  ggtitle("This is my title") +
+  labs(x = "x_displ", y = "y_hwy")
+```
+
+#### 图表整体元素
+
+![](images/paste-2E58602C.png)
+
+```{r}
+df %>%
+  ggplot(aes(x = displ, y = hwy, color = factor(cyl))) +
+  geom_point() +
+  facet_grid(vars(manufacturer), vars(class)) +
+  ggtitle("This is my title") +
+  labs(x = "x_displ", y = "y_hwy")+
+  theme(
+    plot.background = element_rect(fill = 'orange', color = 'black', size = 10),
+    plot.title = element_text(hjust = 1, color = 'red', face = 'italic'),
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 20, unit = "pt")
+  )
+```
+
+#### 坐标轴元素
+
+![](images/paste-E466809E.png)
+
+```{r}
+df %>%
+  ggplot(aes(x = displ, y = hwy, color = factor(cyl))) +
+  geom_point() +
+  facet_grid(vars(manufacturer), vars(class)) +
+  ggtitle("This is my title") +
+  labs(x = "x_displ", y = "y_hwy") +
+  theme(
+    axis.line = element_line(color = "orange", size = 2),
+    axis.title = element_text(color = "red", face = "italic"),
+    axis.ticks = element_line(color = "purple", size = 3),
+    axis.text = element_text(color = "blue"),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+#### 面板元素
+
+![](images/paste-67D4BAC0.png)
+
+```{r}
+df %>%
+  ggplot(aes(x = displ, y = hwy, color = factor(cyl))) +
+  geom_point() +
+  facet_grid(vars(manufacturer), vars(class)) +
+  ggtitle("This is my title") +
+  labs(x = "x_displ", y = "y_hwy") +
+  theme(
+    panel.background = element_rect(fill = "orange", color = "red"),
+    panel.grid = element_line(color = "grey80", size = 0.5)
+  )
+```
+
+#### 图例元素
+
+![](images/paste-0A727197.png)
+
+```{r}
+df %>%
+  ggplot(aes(x = displ, y = hwy, color = factor(cyl))) +
+  geom_point() +
+  facet_grid(vars(manufacturer), vars(class)) +
+  ggtitle("This is my title") +
+  labs(x = "x_displ", y = "y_hwy") +
+  theme(
+    legend.background = element_rect(fill = "orange"),
+    legend.title = element_text(color = "blue", size = 10),
+    legend.key = element_rect(fill = "grey80"),
+    legend.text = element_text(color = "red"),
+    legend.margin = margin(t = 20, r = 20, b = 20, l = 20, unit = "pt"),
+    legend.position = "bottom"
+  )
+```
+
+#### 分面元素
+
+![](images/paste-3160B808.png)
+
+```{r}
+df %>%
+  ggplot(aes(x = displ, y = hwy, color = factor(cyl))) +
+  geom_point() +
+  facet_grid(vars(manufacturer), vars(class)) +
+  ggtitle("This is my title") +
+  labs(x = "x_displ", y = "y_hwy") +
+  theme(
+    strip.background = element_rect(fill = "orange"),
+    strip.text = element_text(color = "red"),
+    panel.spacing = unit(0.3, "inch") 
+    # strip.switch.pad.grid =
+  )
+```
+
+#### 小结
+
+![](images/ggplot2-themes.jpg)
+
+除此之外，最常用的方法是使用系统提供的主题，或者使用ggthemes包提供的主题。
+
+![](images/paste-3C4CF299.png)
+
+### 图例
+
+```{r}
+mpg %>%
+  ggplot(aes(x = displ, y = hwy, color = factor(cyl))) +
+  geom_point()  
+```
+
+如果想要对图例进行修改，可以使用`guide()`函数，类似于主题中的`theme()`函数，参数要么为字符串：`'color = colorbar'`要么是特定的函数：`color = guide_colorbar()`。
+
+![](images/ggplot2_guides.jpg)
+
+-   `guide_colorbar()`负责控制连续型颜色。
+
+-   `guide_legand()`负责控制离散型颜色。
+
+-   `guide_axis()`控制坐标轴文本和空白，创建副坐标轴。
+
+-   `guide_bins()`使离散型颜色合起来。
+
+-   `guide_colosteps()`使连续型颜色分开。
+
+![](images/guides_examples.png)
+
+#### 案例
+
+```{r}
+p1 <- mpg %>%
+  ggplot(aes(x = displ, y = hwy, color = factor(cyl))) +
+  geom_point() +
+  ggtitle("This is my title") +
+  labs(x = "x_displ", y = "y_hwy") +
+  guides(color = "legend")
+p2 <- mpg %>%
+  ggplot(aes(x = displ, y = hwy, color = factor(cyl))) +
+  geom_point() +
+  ggtitle("This is my title") +
+  labs(x = "x_displ", y = "y_hwy") +
+  guides(color = guide_bins(
+    title = 'my title'
+  ))
+p1+p2
+mpg %>%
+  ggplot(aes(x = displ, y = hwy, color = factor(cyl))) +
+  geom_point() +
+  ggtitle("This is my title")  +
+  labs(x = "x_displ", y = "y_hwy") +
+  guides(color = guide_legend(
+                   ncol = 4
+                 )
+  )
+mpg %>%
+  ggplot() + 
+  geom_jitter(aes(x = cty, y = hwy, color = class), key_glyph = draw_key_pointrange) + 
+  guides(color = guide_legend(nrow = 1)) +
+  theme(legend.position =  "top", 
+        axis.text = element_text(face = "italic", color = "navy"), 
+        plot.background = element_rect(fill = "#a0d1f2"), 
+        panel.background = element_blank(), 
+        panel.grid = element_line(linetype = "dotdash"))
+mpg %>%
+  ggplot(aes(x = displ, y = hwy, color = factor(cyl))) +
+  geom_point() +
+  ggtitle("This is my title")  +
+  labs(x = "x_displ", y = "y_hwy") +
+  guides(color = guide_legend(
+    title = "title is too high",
+    title.position = "top",
+    title.vjust = 5,
+    label.position = "left",
+    label.hjust = 1,
+    label.theme = element_text(size = 15,
+                               face = "italic",
+                               colour = "red",
+                               angle = 0),
+    keywidth = 5,
+    reverse = TRUE
+   )
+  )
+```
+
+如果存在两个图例，如颜色和大小：
+
+```{r}
+mpg %>%
+  ggplot(aes(x = displ, y = hwy, color = class, size = cyl)) +
+  geom_point()
+```
+
+我们想要删除size这个图例，应该：
+
+```{r}
+mpg %>%
+  ggplot(aes(x = displ, y = hwy, color = class, size = cyl)) +
+  geom_point()+
+  guides(color = guide_legend(),
+         size = 'none')
+##或者
+mpg %>%
+  ggplot(aes(x = displ, y = hwy, color = class, size = cyl)) +
+  geom_point()+
+  guides(color = guide_legend(),
+         size = guide_none())
+```
+
+另外，如果有两个图例使用相同的元素进行映射，则可以将两个图例进行合并：
+
+```{r}
+library(palmerpenguins)
+penguins %>% 
+  ggplot(
+    aes(x = bill_length_mm, y = bill_depth_mm, 
+      color = body_mass_g, size = body_mass_g)
+  ) +
+  geom_point(alpha = 0.6) +
+  scale_color_viridis_c()
+penguins %>% 
+  ggplot(
+    aes(x = bill_length_mm, y = bill_depth_mm, 
+      color = body_mass_g, size = body_mass_g)
+  ) +
+  geom_point(alpha = 0.6) +
+  scale_color_viridis_c()+
+  guides(color = guide_legend()
+         #,size = guide_legand()
+         )
+penguins %>% 
+  ggplot(
+    aes(x = bill_length_mm, y = bill_depth_mm, 
+      color = body_mass_g, size = body_mass_g)
+  ) +
+  geom_point(alpha = 0.6) +
+  scale_color_viridis_c(guide = "legend") 
+```
+
+#### 改变图例大小
+
+```{r}
+penguins %>%
+  ggplot(aes(x = bill_length_mm, y = bill_depth_mm, color = species)) +
+  geom_point(alpha = .5, size = 1)
+penguins %>%
+  ggplot(aes(x = bill_length_mm, y = bill_depth_mm, color = species)) +
+  geom_point(alpha = .5, size = 1) +
+  scale_color_manual(
+    breaks = c("Adelie", "Chinstrap", "Gentoo"),
+    values = c("darkorange", "purple", "cyan4"),
+    guide = guide_legend(override.aes = list(size = 3, alpha = 1))
+  )
+
+```
+
+### 定制化
+
+#### 1.标签
+
+```{r}
+gapminder %>%
+  ggplot(aes(x = gdpPercap, y = lifeExp, color = continent)) +
+  geom_point() +
+  scale_x_log10() +
+  labs(
+    title = "My Plot Title",
+    subtitle = "My Plot subtitle",
+    x = "The X Variable",
+    y = "The Y Variable"
+  )
+```
+
+#### 2.定制颜色
+
+可以使用`scale_color_manual()`和`scale_fill_manual()`来定制。
+
+```{r}
+gapminder %>%
+  ggplot(aes(x = gdpPercap, y = lifeExp, color = continent)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_color_manual(
+    values = c("#195744", "#008148", "#C6C013", "#EF8A17", "#EF2917")
+  )
+```
+
+### 图片摆放
+
+使用patchwork包，
+
+```{r}
+p1 <- gapminder %>%
+  ggplot(aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(aes(color = lifeExp > mean(lifeExp))) +
+  scale_x_log10() +
+  theme(legend.position = "none") +
+  scale_color_manual(values = c("orange", "pink")) +
+  labs(
+    title = "My Plot Title",
+    x = "The X Variable",
+    y = "The Y Variable"
+  )
+p2 <- gapminder %>%
+  ggplot(aes(x = gdpPercap, y = lifeExp, color = continent)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_color_manual(
+    values = c("#195744", "#008148", "#C6C013", "#EF8A17", "#EF2917")
+  ) +
+  theme(legend.position = "none") +
+  labs(
+    title = "My Plot Title",
+    x = "The X Variable",
+    y = "The Y Variable"
+  )
+p1 + p2 +
+  plot_annotation(
+    tag_levels = "A",
+    title = "The surprising truth about mtcars",
+    subtitle = "These 3 plots will reveal yet-untold secrets about our beloved data-set",
+    caption = "Disclaimer: None of these plots are insightful"
+  )
+```
+
+### 高亮
+
+```{r}
+library(gghighlight)
+iris %>% 
+  ggplot()+
+  geom_line(aes(x = Sepal.Length, y = Sepal.Width, group = Species))+
+  gghighlight(Species %in% c('versicolor', 'setosa'),
+              label_key = Species)
+```
+
+### 中文字体
+
+有时我们需要保存图片，图片有中文字符，就需要加载[`library(showtext)`](https://github.com/yixuan/showtext)宏包。根据往年大家提交的作业，有同学用rmarkdown生成pdf，图片标题使用了中文字体，但中文字体无法显示。解决方案是R code chunks加上`fig.showtext=TRUE`。
+
+### 存储和输出
+
+可以使用`ggsave()`函数保存绘图，不输入图片名字变量时，默认保存最近一次绘图。还可以设置大小，默认单位为英寸。
+
+```{r}
+p1 <- ggplot(iris)+
+  geom_point(aes(x = Sepal.Length, y = Sepal.Width, color = Species))
+p1
+ggsave(
+  plot = p1, 
+  'iris_point.pdf',
+  width = 8, 
+  height = 6,
+  dpi = 300
+)
+```

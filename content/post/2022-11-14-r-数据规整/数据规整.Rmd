@@ -1,0 +1,229 @@
+---
+title: "数据规整"
+author:
+  - 杨洪冰
+documentclass: ctexart
+output:
+  rticles::ctex:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+---
+
+```{r message=FALSE}
+library(tidyverse)
+```
+
+### 问题的提出
+
+假如存在A、B、C、D四种植物每天的生长记录：
+
+```{r}
+plant_height <- data.frame(
+  Day = 1:5,
+  A = c(0.7, 1.0, 1.5, 1.8, 2.2),
+  B = c(0.5, 0.7, 0.9, 1.3, 1.8),
+  C = c(0.3, 0.6, 1.0, 1.2, 2.2),
+  D = c(0.4, 0.7, 1.2, 1.5, 3.2)
+)
+plant_height
+```
+
+问题一：筛选植物高度大于等于0.8cm的时刻。
+
+问题二：用不同的颜色画四种植物的生长曲线。
+
+对于问题一：
+
+```{r eval=FALSE}
+plant_height %>% 
+  filter(___  >= 0.8)
+```
+
+但是发现这里的数据框与想要进行处理的数据框不一致，现在的表格为宽表格，为满足要求，需要转变为长表格。
+
+```{r}
+data <- plant_height %>% 
+  pivot_longer(
+  cols = A:D,
+  names_to = 'plant',
+  values_to = 'height'
+) 
+data %>% 
+  filter(height >= 0.8)
+ggplot(data)+
+  geom_line(aes(x = Day, y = height, color = plant))
+```
+
+可以发现，在数据规整后，上述问题轻松地得到了解决。其中`pivot_longer()`含有三个主要参数：
+
+-   cols：这个参数表示哪几个列需要转变。
+
+-   names_to：表示`cols`选取的这些列的**名字**，构成了新的一列，这里需要取一个名字。
+
+-   values_to：表示`cols`选取的这些列的值，构成了一个新的列，这个列的名字。
+
+### 长变宽
+
+```{r}
+wide <- data %>% 
+  pivot_wider(
+    names_from = 'plant', 
+    values_from = 'height'
+  )
+wide
+```
+
+这里与之前类似，参数为
+
+-   names_from：从一个列变成几个列，这个列的名字。
+
+-   values_from：变宽的列的值所在列。
+
+### 列名转变成多个变量
+
+```{r}
+plant_record <- data.frame(
+         day = c(1L, 2L, 3L, 4L, 5L),
+    A_height = c(1.1, 1.2, 1.3, 1.4, 1.5),
+     A_width = c(2.1, 2.2, 2.3, 2.4, 2.5),
+     A_depth = c(3.1, 3.2, 3.3, 3.4, 3.5),
+    B_height = c(4.1, 4.2, 4.3, 4.4, 4.5),
+     B_width = c(5.1, 5.2, 5.3, 5.4, 5.5),
+     B_depth = c(6.1, 6.2, 6.3, 6.4, 6.5),
+    C_height = c(7.1, 7.2, 7.3, 7.4, 7.5),
+     C_width = c(8.1, 8.2, 8.3, 8.4, 8.5),
+     C_depth = c(9.1, 9.2, 9.3, 9.4, 9.5)
+)
+plant_record %>% 
+  knitr::kable()
+```
+
+我们想原始数据框的**列名**，转换成多个变量，比如`A,B,C`成为物种(species)变量，（height, width, depth）成为parameter变量。
+
+```{r}
+plant_record %>% 
+  pivot_longer(
+    cols = -day,
+    names_to = c('species', 'parameter'),
+    names_pattern = "(.*)_(.*)",
+    values_to = 'values'
+      )
+```
+
+我们希望一部分进入变量，如A、B、C，而剩下的保持为变量：
+
+```{r}
+wider <- plant_record %>% 
+  pivot_longer(
+    cols = -day, 
+    names_to = c('species', '.value'),
+    names_pattern = "(.*)_(.*)"
+  )
+```
+
+如果反过来，长变宽呢：
+
+```{r}
+wider %>% 
+  pivot_wider(
+    names_from = species,
+    values_from = c(height, width, depth),
+    names_glue = '{species}_{.value}'
+  )
+```
+
+### 缺失值填充`fill()`
+
+```{r}
+sales <- tibble::tribble(
+  ~quarter, ~year, ~sales,
+      "Q1",  2000,  66013,
+      "Q2",    NA,  69182,
+      "Q3",    NA,  53175,
+      "Q4",    NA,  21001,
+      "Q1",  2001,  46036,
+      "Q2",    NA,  58842,
+      "Q3",    NA,  44568,
+      "Q4",    NA,  50197,
+      "Q1",  2002,  39113,
+      "Q2",    NA,  41668,
+      "Q3",    NA,  30144,
+      "Q4",    NA,  52897
+  )
+sales
+```
+
+使用上下值填充
+
+```{r}
+sales %>% fill(year)
+```
+
+也可以指定方向：
+
+```{r}
+sales %>% fill(year, .direction = 'up')
+```
+
+### 删除或替换
+
+```{r}
+df <- tibble::tribble(
+    ~name,     ~type, ~score, ~extra,
+  "Alice", "english",     80,     10,
+  "Alice",    "math",     NA,      5,
+    "Bob", "english",     NA,      9,
+    "Bob",    "math",     69,     NA,
+  "Carol", "english",     80,     10,
+  "Carol",    "math",     90,      5
+  )
+df
+df %>% 
+  filter(!is.na(score))
+```
+
+也可以用`across()`。
+
+```{r}
+df %>% 
+  filter(across(score, ~ !is.na(.x)))
+#对所有列
+df %>% 
+  filter(across(everything(), ~ !is.na(.x)))
+```
+
+使用更简便的方法：
+
+```{r}
+df %>% drop_na() #不加参数为所有列
+df %>% drop_na(score) #指定某一列
+```
+
+替换缺失值：
+
+```{r}
+df %>% 
+  mutate(score = replace_na(score, 0))
+```
+
+使用`across()`填充多列：
+
+```{r}
+df %>% 
+  mutate(across(c(score, extra),  ~ replace_na(.x, 0)))
+```
+
+也可以使用统计值填充：
+
+```{r}
+df %>% 
+  mutate(across(c(score, extra),  ~ replace_na(.x, mean(.x, na.rm = TRUE))))
+```
+
+或者使用`if_else()`：
+
+```{r}
+df %>% 
+  mutate(across(c(score, extra), ~ if_else(is.na(.x), mean(.x, na.rm = TRUE), .x)))
+```

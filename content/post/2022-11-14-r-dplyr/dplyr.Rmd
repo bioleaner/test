@@ -1,0 +1,385 @@
+---
+title: "dplyr"
+author:
+  - 杨洪冰
+documentclass: ctexart
+output:
+  rticles::ctex:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+---
+
+首先我们加载`dplyr`包：
+
+```{r message=FALSE}
+library(dplyr)
+```
+
+这个包中含有十个强大的函数，分别是：
+
+-   `mutute()`, `select()`, `rename()`, `filter()`.
+
+-   `summarise()`, `group_by()`, `arrange()`.
+
+-   `left_join()`, `right_join()`, `full_join()`.
+
+为了演示功能，加载数据集iris。
+
+```{r}
+head(iris) #查看数据
+```
+
+### 新增一列`mutate()`
+
+为数据集新增一列等级：
+
+```{r}
+level <- rep(c('a', 'b', 'c'),50)
+mutate(iris, level) %>% head()
+```
+
+`mutate()`函数只有两个参数，分别是数据框和新增列，新增列以`列名 = 数据`的形式载入，数据可以与数据框等长，也可以为1，这时为循环补齐，即新增列为常值。
+
+#### `mutate()`和向量函数
+
+自定义一个函数：
+
+```{r}
+squ <- function(x) {
+  x^2
+}
+iris %>% mutate(new = squ(Sepal.Length)) %>% head()
+```
+
+### 选择列`select()`
+
+可以直接根据列名选择列：
+
+```{r}
+iris %>% select(Sepal.Length) %>% head()
+##多选几列
+iris %>% select(Sepal.Length, Sepal.Width) %>% head()
+```
+
+如果不想要某列，可以在前面加`-`或`!`：
+
+```{r}
+iris %>% select(-Sepal.Length) %>% head()
+```
+
+除了按照列名选择列，还可以按照索引值选择：
+
+```{r}
+iris %>% select(1:3) %>% head()#选择前三列
+```
+
+还可以按照列的特征选择：
+
+```{r}
+iris %>% select(starts_with('Sepal')) %>% head() #按开头选择
+iris %>% select(ends_with('Length')) %>% head()#按结尾选择
+iris %>% select(contains('e')) %>% head()#按包含选择
+iris %>% select(where(is.double)) %>% head()#按变量类型选择
+```
+
+除此之外，还可以使用`select()`更换列顺序：
+
+```{r}
+#将speices提到最前面
+iris %>% select(Species, everything()) %>% head()
+```
+
+### `rename()`修改列名
+
+用`rename()`修改列名的方法是`rename(.data, new_name = old_name)`。
+
+```{r}
+iris %>% rename(x = Species) %>% head()
+```
+
+### `filter()`选择行
+
+可以根据条件，保留符合条件的行：
+
+```{r}
+iris %>% filter(Sepal.Length > 5.0) %>% head()
+```
+
+这里的运算符包括`<`, `>`, `<=`, `>=`, `==` (equal), `!=` (not equal), `%in%`, [`is.na()`](https://rdrr.io/r/base/NA.html) 和 `!is.na()` 。
+
+也可以指定多个条件进行筛选，两个条件需要用`,`分隔：
+
+```{r}
+iris %>% filter(Sepal.Length > 5.0, Species == 'setosa') %>% head()
+```
+
+也可以使用布尔运算符：`&`, `|`, `!`，但是只需要写一个就可以。
+
+```{r}
+iris %>% filter(Sepal.Length > 5.0 | Species == 'setosa') %>% head()
+```
+
+`%in%`是一个很有用的运算符：
+
+```{r}
+iris %>% filter(Species %in% c('setosa', 'virginica')) %>% head()
+```
+
+`filter()`的条件也可以配合一些统计函数：
+
+```{r}
+#选择Sepal.Length最大行
+iris %>% filter(Sepal.Length == max(Sepal.Length)) %>% head()
+#选择Sepal.Length大于平均值的行
+iris %>% filter(Sepal.Length > mean(Sepal.Length)) %>% head()
+```
+
+### 统计汇总`summarise()`
+
+这个函数往往与其他函数配合使用：
+
+```{r}
+#计算Sepal.Length列的均值和标准差
+iris %>% 
+  summarise(mean = mean(Sepal.Length), 
+            sd = sd(Sepal.Length),
+            n = n(),
+            sum = sum(Sepal.Length))
+```
+
+`summarise()`函数单独用并不出色，与`group_by()`连用用于分组统计。
+
+### 分组统计`group_by()`
+
+将上述计算按species列分组：
+
+```{r}
+iris %>% 
+  group_by(Species) %>% 
+  summarise(mean = mean(Sepal.Length), 
+            sd = sd(Sepal.Length),
+            n = n(),
+            sum = sum(Sepal.Length))
+```
+
+### 排序`arrange()`
+
+比如说按照Sepal.Length排序：
+
+```{r}
+iris %>% 
+  arrange(Sepal.Length) %>% head()
+```
+
+可以发现默认为升序排列，即从小到大排列。如果需要降序排列，则有两种方法：
+
+1.  在排序变量前加-。
+
+2.  使用`desc()`函数。
+
+```{r}
+iris %>% 
+  arrange(-Sepal.Length) %>% head()
+iris %>% 
+  arrange(desc(Sepal.Length)) %>% head()
+```
+
+可以实现相同的效果。
+
+也可以对多个变量排序，谁在前面谁更首先排序：
+
+```{r}
+iris %>% 
+  arrange(desc(Sepal.Length), Sepal.Width) %>% head()
+```
+
+### 左连接`left_join()`
+
+创造一个数据框，是iris按种类分组的Sepal.Length平均值：
+
+```{r}
+df1 <- iris %>% 
+  group_by(Species) %>% 
+  summarise(mean = mean(Sepal.Length))
+df1
+```
+
+创造新数据：
+
+```{r}
+df2 <- tibble(Species = c(unique(iris$Species)), y = c(11,12,13))
+df2
+```
+
+将两个数据框连接，由于是通过`Species`列连接，指定`by = 'Species'`。
+
+```{r}
+df1 %>% left_join(df2, by = 'Species')
+```
+
+这种连接的好处可以保存一个数据框的完整信息，另一个未匹配的将会被丢失。
+
+使用`full_join()`可以保存所有数据，哪边不匹配在哪边填充缺失值。
+
+`inner_join()`内连接只保留匹配的，其余均丢失。
+
+半连接`semi_join()`保留与右侧一致的，反连接`anti_join()`丢弃与右侧一致的。
+
+### `slice()`
+
+`slice()`可以选择n行：
+
+```{r}
+iris %>% slice(1)
+```
+
+除此之外，还可以使用`slice_max()`等函数：
+
+```{r}
+iris %>% slice_max(Sepal.Length)
+iris %>% slice_sample(n = 1)
+```
+
+### `seperate()`
+
+可以将某些按照某种分隔符分割的列拆分：
+
+```{r}
+tb <- tibble::tribble(
+  ~day, ~price,
+  1,   "30-45",
+  2,   "40-95",
+  3,   "89-65",
+  4,   "45-63",
+  5,   "52-42"
+)
+tb %>% tidyr::separate(price, into = c('low', 'high'), sep = '-')
+```
+
+### `unite()`
+
+与separate相反，合并列
+
+```{r}
+tb %>% 
+  tidyr::separate(price, into = c('low', 'high'), sep = '-') %>% 
+  tidyr::unite(col = price, c('low', 'high'), sep = ':',
+        remove = FALSE) #是否除去原列
+```
+
+### `distinct()`
+
+这个函数返回未重复的行：
+
+```{r}
+df <- tibble::tribble(
+  ~x, ~y, ~z,
+  1, 1, 1,
+  1, 1, 2,
+  1, 1, 1,
+  2, 1, 2,
+  2, 2, 3,
+  3, 3, 1
+)
+df
+df %>% distinct() #只有所有列都相同才被舍去
+df %>% distinct(x) #只舍去x的重复
+```
+
+`n_distinct()`处理的对象是vector；功能是**统计不同的元素有多少个**；返回一个数值：
+
+```{r}
+c(1, 1, 1, 2, 2, 1, 3, 3) %>% n_distinct()
+df$x %>% n_distinct()
+df %>% 
+  group_by(x) %>% 
+  summarise(
+    n = n(),
+    n_dis = n_distinct(z)
+  )
+```
+
+`count()`
+
+这个和分组汇总类似：
+
+```{r}
+iris %>% 
+  group_by(Species) %>% 
+  summarise(
+    n = n()
+  )
+iris %>% 
+  count(Species)
+```
+
+可以统计变量组合的数量：
+
+```{r}
+library(ggplot2)
+mpg %>% count(manufacturer, class) %>% head()
+```
+
+可以构建新变量并完成统计：
+
+```{r}
+iris %>% 
+  count(Sepal.Length = Sepal.Length > 5.0)
+#等价于
+iris %>% 
+  filter(Sepal.Length > 5.0) %>% 
+  summarise(
+    n = n()
+  )
+```
+
+### `across()`
+
+同时计算Sepal.Length和Sepal.Width的平均值：
+
+```{r}
+iris %>% 
+  summarise(
+    mean_length = mean(Sepal.Length),
+    mean_width = mean(Sepal.Width)
+  )
+iris %>% 
+  summarise(across(c(Sepal.Length, Sepal.Width),mean))
+```
+
+还可以简化：
+
+```{r}
+iris %>% 
+  summarise(across(starts_with('Sepal'), mean))
+```
+
+`across()`函数用于`mutate()`和`summarise()`中，对多列执行相同的操作。
+
+比如说进行数据的标准化：
+
+```{r}
+std <- function(x) {
+  (x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE)
+}
+iris %>% 
+  summarise(across(ends_with('th'), std)) %>% 
+  head()
+```
+
+或者更简洁：
+
+```{r}
+iris %>% 
+  summarise(across(ends_with('th'), ~(.x-mean(.x)) / sd(.x))) %>% 
+  head()
+```
+
+对多列进行多个统计函数：
+
+```{r}
+iris %>% 
+  summarise(across(starts_with('Sepal'), 
+                   list(mean = mean, sd = sd)))
+```

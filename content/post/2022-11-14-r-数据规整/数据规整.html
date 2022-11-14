@@ -1,0 +1,432 @@
+---
+title: "数据规整"
+author:
+  - 杨洪冰
+documentclass: ctexart
+output:
+  rticles::ctex:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+---
+
+
+
+<pre class="r"><code>library(tidyverse)</code></pre>
+<div id="问题的提出" class="section level3">
+<h3>问题的提出</h3>
+<p>假如存在A、B、C、D四种植物每天的生长记录：</p>
+<pre class="r"><code>plant_height &lt;- data.frame(
+  Day = 1:5,
+  A = c(0.7, 1.0, 1.5, 1.8, 2.2),
+  B = c(0.5, 0.7, 0.9, 1.3, 1.8),
+  C = c(0.3, 0.6, 1.0, 1.2, 2.2),
+  D = c(0.4, 0.7, 1.2, 1.5, 3.2)
+)
+plant_height</code></pre>
+<pre><code>##   Day   A   B   C   D
+## 1   1 0.7 0.5 0.3 0.4
+## 2   2 1.0 0.7 0.6 0.7
+## 3   3 1.5 0.9 1.0 1.2
+## 4   4 1.8 1.3 1.2 1.5
+## 5   5 2.2 1.8 2.2 3.2</code></pre>
+<p>问题一：筛选植物高度大于等于0.8cm的时刻。</p>
+<p>问题二：用不同的颜色画四种植物的生长曲线。</p>
+<p>对于问题一：</p>
+<pre class="r"><code>plant_height %&gt;% 
+  filter(___  &gt;= 0.8)</code></pre>
+<p>但是发现这里的数据框与想要进行处理的数据框不一致，现在的表格为宽表格，为满足要求，需要转变为长表格。</p>
+<pre class="r"><code>data &lt;- plant_height %&gt;% 
+  pivot_longer(
+  cols = A:D,
+  names_to = &#39;plant&#39;,
+  values_to = &#39;height&#39;
+) 
+data %&gt;% 
+  filter(height &gt;= 0.8)</code></pre>
+<pre><code>## # A tibble: 13 × 3
+##      Day plant height
+##    &lt;int&gt; &lt;chr&gt;  &lt;dbl&gt;
+##  1     2 A        1  
+##  2     3 A        1.5
+##  3     3 B        0.9
+##  4     3 C        1  
+##  5     3 D        1.2
+##  6     4 A        1.8
+##  7     4 B        1.3
+##  8     4 C        1.2
+##  9     4 D        1.5
+## 10     5 A        2.2
+## 11     5 B        1.8
+## 12     5 C        2.2
+## 13     5 D        3.2</code></pre>
+<pre class="r"><code>ggplot(data)+
+  geom_line(aes(x = Day, y = height, color = plant))</code></pre>
+<p><img src="/post/2022-11-14-r-数据规整/%E6%95%B0%E6%8D%AE%E8%A7%84%E6%95%B4_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<p>可以发现，在数据规整后，上述问题轻松地得到了解决。其中<code>pivot_longer()</code>含有三个主要参数：</p>
+<ul>
+<li><p>cols：这个参数表示哪几个列需要转变。</p></li>
+<li><p>names_to：表示<code>cols</code>选取的这些列的<strong>名字</strong>，构成了新的一列，这里需要取一个名字。</p></li>
+<li><p>values_to：表示<code>cols</code>选取的这些列的值，构成了一个新的列，这个列的名字。</p></li>
+</ul>
+</div>
+<div id="长变宽" class="section level3">
+<h3>长变宽</h3>
+<pre class="r"><code>wide &lt;- data %&gt;% 
+  pivot_wider(
+    names_from = &#39;plant&#39;, 
+    values_from = &#39;height&#39;
+  )
+wide</code></pre>
+<pre><code>## # A tibble: 5 × 5
+##     Day     A     B     C     D
+##   &lt;int&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
+## 1     1   0.7   0.5   0.3   0.4
+## 2     2   1     0.7   0.6   0.7
+## 3     3   1.5   0.9   1     1.2
+## 4     4   1.8   1.3   1.2   1.5
+## 5     5   2.2   1.8   2.2   3.2</code></pre>
+<p>这里与之前类似，参数为</p>
+<ul>
+<li><p>names_from：从一个列变成几个列，这个列的名字。</p></li>
+<li><p>values_from：变宽的列的值所在列。</p></li>
+</ul>
+</div>
+<div id="列名转变成多个变量" class="section level3">
+<h3>列名转变成多个变量</h3>
+<pre class="r"><code>plant_record &lt;- data.frame(
+         day = c(1L, 2L, 3L, 4L, 5L),
+    A_height = c(1.1, 1.2, 1.3, 1.4, 1.5),
+     A_width = c(2.1, 2.2, 2.3, 2.4, 2.5),
+     A_depth = c(3.1, 3.2, 3.3, 3.4, 3.5),
+    B_height = c(4.1, 4.2, 4.3, 4.4, 4.5),
+     B_width = c(5.1, 5.2, 5.3, 5.4, 5.5),
+     B_depth = c(6.1, 6.2, 6.3, 6.4, 6.5),
+    C_height = c(7.1, 7.2, 7.3, 7.4, 7.5),
+     C_width = c(8.1, 8.2, 8.3, 8.4, 8.5),
+     C_depth = c(9.1, 9.2, 9.3, 9.4, 9.5)
+)
+plant_record %&gt;% 
+  knitr::kable()</code></pre>
+<table>
+<colgroup>
+<col width="5%" />
+<col width="11%" />
+<col width="10%" />
+<col width="10%" />
+<col width="11%" />
+<col width="10%" />
+<col width="10%" />
+<col width="11%" />
+<col width="10%" />
+<col width="10%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="right">day</th>
+<th align="right">A_height</th>
+<th align="right">A_width</th>
+<th align="right">A_depth</th>
+<th align="right">B_height</th>
+<th align="right">B_width</th>
+<th align="right">B_depth</th>
+<th align="right">C_height</th>
+<th align="right">C_width</th>
+<th align="right">C_depth</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">1</td>
+<td align="right">1.1</td>
+<td align="right">2.1</td>
+<td align="right">3.1</td>
+<td align="right">4.1</td>
+<td align="right">5.1</td>
+<td align="right">6.1</td>
+<td align="right">7.1</td>
+<td align="right">8.1</td>
+<td align="right">9.1</td>
+</tr>
+<tr class="even">
+<td align="right">2</td>
+<td align="right">1.2</td>
+<td align="right">2.2</td>
+<td align="right">3.2</td>
+<td align="right">4.2</td>
+<td align="right">5.2</td>
+<td align="right">6.2</td>
+<td align="right">7.2</td>
+<td align="right">8.2</td>
+<td align="right">9.2</td>
+</tr>
+<tr class="odd">
+<td align="right">3</td>
+<td align="right">1.3</td>
+<td align="right">2.3</td>
+<td align="right">3.3</td>
+<td align="right">4.3</td>
+<td align="right">5.3</td>
+<td align="right">6.3</td>
+<td align="right">7.3</td>
+<td align="right">8.3</td>
+<td align="right">9.3</td>
+</tr>
+<tr class="even">
+<td align="right">4</td>
+<td align="right">1.4</td>
+<td align="right">2.4</td>
+<td align="right">3.4</td>
+<td align="right">4.4</td>
+<td align="right">5.4</td>
+<td align="right">6.4</td>
+<td align="right">7.4</td>
+<td align="right">8.4</td>
+<td align="right">9.4</td>
+</tr>
+<tr class="odd">
+<td align="right">5</td>
+<td align="right">1.5</td>
+<td align="right">2.5</td>
+<td align="right">3.5</td>
+<td align="right">4.5</td>
+<td align="right">5.5</td>
+<td align="right">6.5</td>
+<td align="right">7.5</td>
+<td align="right">8.5</td>
+<td align="right">9.5</td>
+</tr>
+</tbody>
+</table>
+<p>我们想原始数据框的<strong>列名</strong>，转换成多个变量，比如<code>A,B,C</code>成为物种(species)变量，（height, width, depth）成为parameter变量。</p>
+<pre class="r"><code>plant_record %&gt;% 
+  pivot_longer(
+    cols = -day,
+    names_to = c(&#39;species&#39;, &#39;parameter&#39;),
+    names_pattern = &quot;(.*)_(.*)&quot;,
+    values_to = &#39;values&#39;
+      )</code></pre>
+<pre><code>## # A tibble: 45 × 4
+##      day species parameter values
+##    &lt;int&gt; &lt;chr&gt;   &lt;chr&gt;      &lt;dbl&gt;
+##  1     1 A       height       1.1
+##  2     1 A       width        2.1
+##  3     1 A       depth        3.1
+##  4     1 B       height       4.1
+##  5     1 B       width        5.1
+##  6     1 B       depth        6.1
+##  7     1 C       height       7.1
+##  8     1 C       width        8.1
+##  9     1 C       depth        9.1
+## 10     2 A       height       1.2
+## # … with 35 more rows</code></pre>
+<p>我们希望一部分进入变量，如A、B、C，而剩下的保持为变量：</p>
+<pre class="r"><code>wider &lt;- plant_record %&gt;% 
+  pivot_longer(
+    cols = -day, 
+    names_to = c(&#39;species&#39;, &#39;.value&#39;),
+    names_pattern = &quot;(.*)_(.*)&quot;
+  )</code></pre>
+<p>如果反过来，长变宽呢：</p>
+<pre class="r"><code>wider %&gt;% 
+  pivot_wider(
+    names_from = species,
+    values_from = c(height, width, depth),
+    names_glue = &#39;{species}_{.value}&#39;
+  )</code></pre>
+<pre><code>## # A tibble: 5 × 10
+##     day A_height B_hei…¹ C_hei…² A_width B_width C_width A_depth B_depth C_depth
+##   &lt;int&gt;    &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;
+## 1     1      1.1     4.1     7.1     2.1     5.1     8.1     3.1     6.1     9.1
+## 2     2      1.2     4.2     7.2     2.2     5.2     8.2     3.2     6.2     9.2
+## 3     3      1.3     4.3     7.3     2.3     5.3     8.3     3.3     6.3     9.3
+## 4     4      1.4     4.4     7.4     2.4     5.4     8.4     3.4     6.4     9.4
+## 5     5      1.5     4.5     7.5     2.5     5.5     8.5     3.5     6.5     9.5
+## # … with abbreviated variable names ¹​B_height, ²​C_height</code></pre>
+</div>
+<div id="缺失值填充fill" class="section level3">
+<h3>缺失值填充<code>fill()</code></h3>
+<pre class="r"><code>sales &lt;- tibble::tribble(
+  ~quarter, ~year, ~sales,
+      &quot;Q1&quot;,  2000,  66013,
+      &quot;Q2&quot;,    NA,  69182,
+      &quot;Q3&quot;,    NA,  53175,
+      &quot;Q4&quot;,    NA,  21001,
+      &quot;Q1&quot;,  2001,  46036,
+      &quot;Q2&quot;,    NA,  58842,
+      &quot;Q3&quot;,    NA,  44568,
+      &quot;Q4&quot;,    NA,  50197,
+      &quot;Q1&quot;,  2002,  39113,
+      &quot;Q2&quot;,    NA,  41668,
+      &quot;Q3&quot;,    NA,  30144,
+      &quot;Q4&quot;,    NA,  52897
+  )
+sales</code></pre>
+<pre><code>## # A tibble: 12 × 3
+##    quarter  year sales
+##    &lt;chr&gt;   &lt;dbl&gt; &lt;dbl&gt;
+##  1 Q1       2000 66013
+##  2 Q2         NA 69182
+##  3 Q3         NA 53175
+##  4 Q4         NA 21001
+##  5 Q1       2001 46036
+##  6 Q2         NA 58842
+##  7 Q3         NA 44568
+##  8 Q4         NA 50197
+##  9 Q1       2002 39113
+## 10 Q2         NA 41668
+## 11 Q3         NA 30144
+## 12 Q4         NA 52897</code></pre>
+<p>使用上下值填充</p>
+<pre class="r"><code>sales %&gt;% fill(year)</code></pre>
+<pre><code>## # A tibble: 12 × 3
+##    quarter  year sales
+##    &lt;chr&gt;   &lt;dbl&gt; &lt;dbl&gt;
+##  1 Q1       2000 66013
+##  2 Q2       2000 69182
+##  3 Q3       2000 53175
+##  4 Q4       2000 21001
+##  5 Q1       2001 46036
+##  6 Q2       2001 58842
+##  7 Q3       2001 44568
+##  8 Q4       2001 50197
+##  9 Q1       2002 39113
+## 10 Q2       2002 41668
+## 11 Q3       2002 30144
+## 12 Q4       2002 52897</code></pre>
+<p>也可以指定方向：</p>
+<pre class="r"><code>sales %&gt;% fill(year, .direction = &#39;up&#39;)</code></pre>
+<pre><code>## # A tibble: 12 × 3
+##    quarter  year sales
+##    &lt;chr&gt;   &lt;dbl&gt; &lt;dbl&gt;
+##  1 Q1       2000 66013
+##  2 Q2       2001 69182
+##  3 Q3       2001 53175
+##  4 Q4       2001 21001
+##  5 Q1       2001 46036
+##  6 Q2       2002 58842
+##  7 Q3       2002 44568
+##  8 Q4       2002 50197
+##  9 Q1       2002 39113
+## 10 Q2         NA 41668
+## 11 Q3         NA 30144
+## 12 Q4         NA 52897</code></pre>
+</div>
+<div id="删除或替换" class="section level3">
+<h3>删除或替换</h3>
+<pre class="r"><code>df &lt;- tibble::tribble(
+    ~name,     ~type, ~score, ~extra,
+  &quot;Alice&quot;, &quot;english&quot;,     80,     10,
+  &quot;Alice&quot;,    &quot;math&quot;,     NA,      5,
+    &quot;Bob&quot;, &quot;english&quot;,     NA,      9,
+    &quot;Bob&quot;,    &quot;math&quot;,     69,     NA,
+  &quot;Carol&quot;, &quot;english&quot;,     80,     10,
+  &quot;Carol&quot;,    &quot;math&quot;,     90,      5
+  )
+df</code></pre>
+<pre><code>## # A tibble: 6 × 4
+##   name  type    score extra
+##   &lt;chr&gt; &lt;chr&gt;   &lt;dbl&gt; &lt;dbl&gt;
+## 1 Alice english    80    10
+## 2 Alice math       NA     5
+## 3 Bob   english    NA     9
+## 4 Bob   math       69    NA
+## 5 Carol english    80    10
+## 6 Carol math       90     5</code></pre>
+<pre class="r"><code>df %&gt;% 
+  filter(!is.na(score))</code></pre>
+<pre><code>## # A tibble: 4 × 4
+##   name  type    score extra
+##   &lt;chr&gt; &lt;chr&gt;   &lt;dbl&gt; &lt;dbl&gt;
+## 1 Alice english    80    10
+## 2 Bob   math       69    NA
+## 3 Carol english    80    10
+## 4 Carol math       90     5</code></pre>
+<p>也可以用<code>across()</code>。</p>
+<pre class="r"><code>df %&gt;% 
+  filter(across(score, ~ !is.na(.x)))</code></pre>
+<pre><code>## Warning: Using `across()` in `filter()` is deprecated, use `if_any()` or
+## `if_all()`.</code></pre>
+<pre><code>## # A tibble: 4 × 4
+##   name  type    score extra
+##   &lt;chr&gt; &lt;chr&gt;   &lt;dbl&gt; &lt;dbl&gt;
+## 1 Alice english    80    10
+## 2 Bob   math       69    NA
+## 3 Carol english    80    10
+## 4 Carol math       90     5</code></pre>
+<pre class="r"><code>#对所有列
+df %&gt;% 
+  filter(across(everything(), ~ !is.na(.x)))</code></pre>
+<pre><code>## Warning: Using `across()` in `filter()` is deprecated, use `if_any()` or
+## `if_all()`.</code></pre>
+<pre><code>## # A tibble: 3 × 4
+##   name  type    score extra
+##   &lt;chr&gt; &lt;chr&gt;   &lt;dbl&gt; &lt;dbl&gt;
+## 1 Alice english    80    10
+## 2 Carol english    80    10
+## 3 Carol math       90     5</code></pre>
+<p>使用更简便的方法：</p>
+<pre class="r"><code>df %&gt;% drop_na() #不加参数为所有列</code></pre>
+<pre><code>## # A tibble: 3 × 4
+##   name  type    score extra
+##   &lt;chr&gt; &lt;chr&gt;   &lt;dbl&gt; &lt;dbl&gt;
+## 1 Alice english    80    10
+## 2 Carol english    80    10
+## 3 Carol math       90     5</code></pre>
+<pre class="r"><code>df %&gt;% drop_na(score) #指定某一列</code></pre>
+<pre><code>## # A tibble: 4 × 4
+##   name  type    score extra
+##   &lt;chr&gt; &lt;chr&gt;   &lt;dbl&gt; &lt;dbl&gt;
+## 1 Alice english    80    10
+## 2 Bob   math       69    NA
+## 3 Carol english    80    10
+## 4 Carol math       90     5</code></pre>
+<p>替换缺失值：</p>
+<pre class="r"><code>df %&gt;% 
+  mutate(score = replace_na(score, 0))</code></pre>
+<pre><code>## # A tibble: 6 × 4
+##   name  type    score extra
+##   &lt;chr&gt; &lt;chr&gt;   &lt;dbl&gt; &lt;dbl&gt;
+## 1 Alice english    80    10
+## 2 Alice math        0     5
+## 3 Bob   english     0     9
+## 4 Bob   math       69    NA
+## 5 Carol english    80    10
+## 6 Carol math       90     5</code></pre>
+<p>使用<code>across()</code>填充多列：</p>
+<pre class="r"><code>df %&gt;% 
+  mutate(across(c(score, extra),  ~ replace_na(.x, 0)))</code></pre>
+<pre><code>## # A tibble: 6 × 4
+##   name  type    score extra
+##   &lt;chr&gt; &lt;chr&gt;   &lt;dbl&gt; &lt;dbl&gt;
+## 1 Alice english    80    10
+## 2 Alice math        0     5
+## 3 Bob   english     0     9
+## 4 Bob   math       69     0
+## 5 Carol english    80    10
+## 6 Carol math       90     5</code></pre>
+<p>也可以使用统计值填充：</p>
+<pre class="r"><code>df %&gt;% 
+  mutate(across(c(score, extra),  ~ replace_na(.x, mean(.x, na.rm = TRUE))))</code></pre>
+<pre><code>## # A tibble: 6 × 4
+##   name  type    score extra
+##   &lt;chr&gt; &lt;chr&gt;   &lt;dbl&gt; &lt;dbl&gt;
+## 1 Alice english  80    10  
+## 2 Alice math     79.8   5  
+## 3 Bob   english  79.8   9  
+## 4 Bob   math     69     7.8
+## 5 Carol english  80    10  
+## 6 Carol math     90     5</code></pre>
+<p>或者使用<code>if_else()</code>：</p>
+<pre class="r"><code>df %&gt;% 
+  mutate(across(c(score, extra), ~ if_else(is.na(.x), mean(.x, na.rm = TRUE), .x)))</code></pre>
+<pre><code>## # A tibble: 6 × 4
+##   name  type    score extra
+##   &lt;chr&gt; &lt;chr&gt;   &lt;dbl&gt; &lt;dbl&gt;
+## 1 Alice english  80    10  
+## 2 Alice math     79.8   5  
+## 3 Bob   english  79.8   9  
+## 4 Bob   math     69     7.8
+## 5 Carol english  80    10  
+## 6 Carol math     90     5</code></pre>
+</div>

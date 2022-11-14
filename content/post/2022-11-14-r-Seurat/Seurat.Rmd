@@ -1,0 +1,373 @@
+---
+title: "Seurat处理单细胞测序数据"
+author:
+  - 杨洪冰
+documentclass: ctexart
+output:
+  rticles::ctex:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+---
+
+## scRNAseq
+
+通过这篇文章学习单细胞测序的分析。
+
+### 安装包
+
+这里我们需要单细胞数据分析的包Seurat，数据处理的包dplyr，绘图包ggplot2，拼图包patchwork.
+
+```{r}
+library(Seurat)
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+```
+
+### 加载数据
+
+```{r}
+data <- Read10X('D:/R/hg19/')
+```
+
+观察一下数据：
+
+```{r}
+dim(data)
+str(data)
+class(data)
+data[1:5,1:5]
+```
+
+表达矩阵每一行代表一个基因在不同细胞中的表达，列代表一个细胞中基因的表达情况。其中，表达矩阵是以稀疏矩阵的形式存放的，即0的位置使用.来代替。
+
+```{r}
+x <- apply(data, 2, function(x) sum(x>0))
+
+hist(x, breaks = 100)
+```
+
+由此可见，大部分细胞表达基因数大致为500-1000。
+
+```{r}
+x <- colSums(data)
+hist(x, breaks = 100, main = 'sum-expression for gene')
+```
+
+### 创建Seurat对象
+
+```{r}
+pbmc <- CreateSeuratObject(counts=data,
+                           project="course",
+                           min.cells = 3,
+                           min.features=200)
+```
+
+这里让我们学习`CreateSeuratObject`函数，在命令行中敲入`?CreateSeuratObject`即可，来看一下重要的参数：
+
+-   counts: 表示输入的基因表达矩阵。
+
+-   project: 该Seurat对象所使用的的project名字。
+
+-   min.cells: 这是一个筛选的条件，即细胞中基因表达数小于此值的细胞将会被舍弃。因此，可以减小这个值以囊括更多的细胞。
+
+-   min.features: 这也是一个筛选的条件，表示基因至少应该在min.features个细胞中被检测到，否则将不会被保留。
+
+### 数据预处理
+
+这部分将基于质控、标准化和检测到的变化基因对数据进行筛选。
+
+#### 对细胞的质控
+
+参考文章：[Classification of low quality cells from single-cell RNA-seq data](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4758103/).。分别从以下角度对数据进行质控：
+
+-   单个细胞中检测到单个基因的数目。
+
+-   低质量的细胞以及空泡油滴只能检测到很少的基因数，相反，包含多个细胞的油滴将会检测到异常多的基因。
+
+-   一个细胞中检测到的基因总数。
+
+-   检测到线粒体的基因数百分比：由于低质量细胞或者垂死细胞通常会有线粒体污染，因此线粒体基因占比多的细胞通常会被舍弃。这里使用`PercentageFeatureSet`函数计算线粒体QC，计算线粒体基因所占百分比。基因名以MT-开始的基因被定义为线粒体基因。
+
+##### 线粒体基因占比计算与观察
+
+```{r}
+pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc, pattern = "^MT-")
+head(pbmc@meta.data)
+```
+
+绘制小提琴图展示基因数目，UMI数目和线粒体基因占比。
+
+```{r}
+VlnPlot(pbmc, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+```
+
+唯一分子标记（UMI）是一种分子条形码，可以在测序过程中错误校正，提高准确性。这些分子条形码均为短序列，可特异性的标记样本文库中的每个分子。UMI可用于各种测序应用，许多是与DNA和cDNA的PCR重复相关的应用。RNA-seq基因表达分析和其他定量测序方法也可以采用UMI来去除重复。
+
+查看基因数目、UMI数目和线粒体基因占比的关系。
+
+```{r}
+plot1 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "percent.mt")
+plot2 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+plot3 <- FeatureScatter(pbmc, feature1 = "percent.mt", feature2 = "nFeature_RNA")
+plot1 + plot2 + plot3
+```
+
+##### 开始质控
+
+这次质控的筛选标准如下
+
+-   筛选检测基因数大于2500或小于200的细胞。
+
+-   单个细胞中线粒体基因占比超过5%的细胞。
+
+```{r}
+pbmc <- subset(pbmc, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+```
+
+对质控后的数据绘制小提琴图：
+
+```{r}
+VlnPlot(pbmc, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+```
+
+#### 数据的标准化
+
+在这里默认采用的标准化方法为`LogNormalize`，即先对每个细胞的基因表达乘以比例系数（一般为10000），然后log取对数。标准化的结果存放在`pbmc@assays$RNA@data`中。标准化前的细胞表达量：
+
+```{r}
+hist(colSums(pbmc$RNA@data),
+     breaks = 100,
+     main = "Total expression before normalisation",
+     xlab = "Sum of expression")
+```
+
+标准化（标准化方法和比例因子都是默认的，可以直接不写或使用其他值）：
+
+```{r}
+pbmc <- NormalizeData(pbmc, normalization.method = 'LogNormalize', scale.factor = 10000)
+```
+
+标准化后的细胞表达量：
+
+```{r}
+hist(colSums(pbmc$RNA@data),
+     breaks = 100,
+     main = "Total expression after normalisation",
+     xlab = "Sum of expression")  
+```
+
+可以看到，现在的数据大致呈正态分布，可以满足我们的需求。
+
+#### 变化基因的鉴定
+
+对单细胞测序数据进行分析的主要目的就是寻找差异基因，即在不同细胞中表达有明显差异的基因。因此，我们需要鉴定在细胞间表达高度变化的基因。这里用到`FindVariableFeatures()`函数，主要方法是计算每个基因的均值与方差，并直接模拟其关系，函数默认返回2000个基因。
+
+```{r}
+pbmc <- FindVariableFeatures(pbmc, selection.method = "vst", nfeatures = 2000)
+### 10个差异表达最剧烈的基因
+top10 <- head(VariableFeatures(pbmc), 10) #head(pbmc$RNA@var.features,10)
+### 画出表达差异的基因，观察分布
+plot1 <- VariableFeaturePlot(pbmc)
+# 画出表达变化的基因，标记前10个基因
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+plot1
+plot2
+```
+
+### 数据缩放
+
+线性转换缩放数据，`ScaleData()`函数实现该功能，通过这一步的缩放，得到基因表达的均值为0，方差为1，结果存放在`pbmc[["RNA"]]@scale.data`中。
+
+```{r}
+all.genes <- rownames(pbmc)
+pbmc <- ScaleData(pbmc, features = all.genes) #features默认为variable features.
+### 移除影响方差的因素
+pbmc <- ScaleData(pbmc, vars.to.regress = "percent.mt")
+```
+
+### 数据降维
+
+#### PCA
+
+首先采用主成分分析PCA对数据进行线性降维，默认对前面取出2000基因进行降维，使用features参数可以重新指定数据集。数据存放在`pbmc@reductions$pca`中。
+
+```{r}
+pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
+```
+
+首先查看对每个主成分影响大的基因集。
+
+```{r}
+print(pbmc[["pca"]], dims = 1:5, nfeatures = 5)
+```
+
+`VizDimLoadings`, `DimPlot`, 和 `DimHeatmap`可以从基因或细胞角度可视化pca结果。
+
+可视化对每个主成分影响较大的基因集。
+
+```{r}
+VizDimLoadings(pbmc, dims = 1:2, 
+               nfeatures = 30,
+               col = 'blue',
+               reduction = "pca")
+```
+
+两个主成分的展示：
+
+```{r}
+DimPlot(pbmc, 
+        dims = c(1,2),repel = F,
+        reduction = "pca",split.by = 'ident')
+```
+
+DimHeatmap绘制基于单个主成分的热图，细胞和基因的排序都是基于他们的主成分分数。对于数据异质性的探索是很有帮助的，可以帮助用户选择用于下游分析的主成分维度。
+
+```{r}
+DimHeatmap(pbmc, dims = 1, 
+           nfeatures = 30,
+           cells = 500, balanced = TRUE)
+```
+
+同时展示多个成分：
+
+```{r}
+DimHeatmap(pbmc, dims = 1:15, cells = 500, balanced = TRUE)
+```
+
+#### 数据维度确定
+
+为避免单个基因的影响，Seurat聚类细胞时常使用的是PCA结果，但需要确定使用多少个主成分用于后续分析。一般有两种方法，一种是基于零分布的统计检验方法，这种方法耗时长且可能不会返回明确结果。另一种是主成分分析常用的启发式评估。
+
+##### JackStraw()
+
+在JackStraw()函数中, 使用基于零分布的置换检验方法。随机抽取一部分基因(默认1%)然后进行pca分析得到pca分数，将这部分基因的pca分数与先前计算的pca分数进行比较得到显著性p-Value。根据主成分（pc）所包含基因的p-value进行判断选择主成分。最终的结果是每个基因与每个主成分的关联的p-Value。保留下来的主成分是那些富集小的p-Value基因的主成分。
+
+```{r}
+pbmc <- JackStraw(pbmc, num.replicate = 100)
+pbmc <- ScoreJackStraw(pbmc, dims = 1:20)
+```
+
+JackStrawPlot()函数提供可视化方法，用于比较每一个主成分的p-value的分布，虚线是均匀分布；显著的主成分富集有小p-Value基因，实线位于虚线左上方。下图表明保留10个pca主成分用于后续分析是比较合理的。
+
+```{r}
+JackStrawPlot(pbmc, dims = 1:15)
+```
+
+```{r}
+ElbowPlot(pbmc)
+```
+
+启发式评估方法生成一个Elbow plot图。在图中展示了每个主成分对数据方差的解释情况（百分比表示），并进行排序。根据自己需要选择主成分，图中发现第9个主成分是一个拐点，后续的主成分(PC)变化都不大了。
+
+### 聚类
+
+Seurat v3应用基于图形的聚类方法，例如KNN方法。具有相似基因表达模式的细胞之间绘制边缘，然后将他们划分为一个内联群体。
+
+在PhenoGraph中，首先基于pca维度中（先前计算的pca数据）计算欧式距离（the euclidean distance），然后根据两个细胞在局部的重合情况（Jaccard 相似系数）优化两个细胞之间的边缘权值。此步骤内置于FindNeighbors函数，输入时先前确定的pc数据。
+
+为了聚类细胞，接下来应用模块化优化技术迭代将细胞聚集在一起。（the Louvain algorithm (default) or SLM \[SLM, Blondel et al., Journal of Statistical Mechanics\]），FindClusters函数实现这一功能，其中需要注意resolution参数，该参数设置下游聚类分析的"granularity"，更大的resolution会导致跟多的细胞类群。3000左右的细胞量，设置resolution为0.4-1.2是比较合适的。细胞数据集越大，需要更大的resolution参数, 会获得更多的细胞聚类。
+
+```{r}
+pbmc <- FindNeighbors(pbmc, dims = 1:10) #根据前面选择维度为10
+pbmc <- FindClusters(pbmc, resolution = 0.5)
+```
+
+查看细胞属于那个类群可以使用函数Idents。
+
+```{r}
+head(Idents(pbmc))
+```
+
+### 非线性降维
+
+这一步建议使用的维度与PCA一致。
+
+```{r}
+pbmc <- RunUMAP(pbmc, dims = 1:10)
+```
+
+画图展示：
+
+```{r}
+ DimPlot(pbmc, reduction = "umap")
+```
+
+为聚类添加标签：
+
+```{r}
+DimPlot(pbmc, reduction = "umap",label = TRUE)
+LabelClusters(DimPlot(pbmc, reduction = "umap"),id = 'ident')
+```
+
+此时可以保存数据，方便下次直接导入数据绘制图片：
+
+```{r}
+#saveRDS(pbmc, file = "../output/pbmc_tutorial.rds")
+```
+
+### 寻找差异表达基因
+
+Seurat可以通过差异表达分析寻找不同细胞类群的标记基因。FindMarkers函数可以进行此操作，但是默认寻找单个类群(参数ident.1)与其他所有类群阳性和阴性标记基因。FindAllMarkers函数会自动寻找每个类群和其他每个类群之间的标记基因。
+
+min.pct参数:设定在两个细胞群中任何一个被检测到的百分比，通过此设定不检测很少表达基因来缩短程序运行时间。默认0.1。
+
+thresh.test参数：设定在两个细胞群中基因差异表达量。可以设置为0 ，程序运行时间会更长。
+
+max.cells.per.ident参数：每个类群细胞抽样设置；也可以缩短程序运行时间。
+
+寻找类群一的差异基因：
+
+```{r}
+cluster1.markers <- FindMarkers(pbmc, ident.1 = 1, min.pct = 0.25)
+head(cluster1.markers)
+```
+
+寻找0-3相对于簇5的差异基因：
+
+```{r}
+cluster5.markers <- FindMarkers(pbmc, ident.1 = 5, ident.2 = c(0, 3), min.pct = 0.25)
+head(cluster5.markers, n = 5)
+```
+
+寻找所有的簇相对于其他簇的差异基因（只有阳性）：
+
+```{r}
+pbmc.markers <- FindAllMarkers(pbmc, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+pbmc.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC)
+```
+
+有多种可视化标记基因的方法：
+
+-   VlnPlot: 基于细胞类群的基因表达概率分布。
+
+-   FeaturePlot：在tSNE 或 PCA图中画出基因表达情况。
+
+RidgePlot，CellScatter，DotPlot。
+
+```{r}
+VlnPlot(pbmc, features = c("NUDT16", "RPL41"))
+```
+
+```{r}
+FeaturePlot(pbmc, features = c("MS4A1", "GNLY", "CD3E", "CD14", "FCER1A", "FCGR3A", "LYZ", "PPBP", 
+    "CD8A"))
+```
+
+```{r}
+top10 <- pbmc.markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC)
+DoHeatmap(pbmc, features = top10$gene) + NoLegend()
+```
+
+### 细胞注释
+
+根据已知细胞类型与基因标记的对应关系，可以为细胞类群找到对应的细胞类型。
+
+```{r}
+new.cluster.ids <- c("Naive CD4 T", "Memory CD4 T", "CD14+ Mono", "B", "CD8 T", "FCGR3A+ Mono", 
+    "NK", "DC", "Platelet")
+names(new.cluster.ids) <- levels(pbmc)
+pbmc <- RenameIdents(pbmc, new.cluster.ids)
+DimPlot(pbmc, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
+```
