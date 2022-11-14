@@ -1,5 +1,5 @@
 ---
-title: "在R Markdown文档中使用中文"
+title: "pheatmap"
 author:
   - 杨洪冰
 documentclass: ctexart

@@ -1,0 +1,142 @@
+---
+title: "ggsci"
+author:
+  - 杨洪冰
+documentclass: ctexart
+output:
+  rticles::ctex:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+---
+
+
+
+<div id="ggsci包学习" class="section level2">
+<h2>ggsci包学习</h2>
+<p>首先安装并加载相关包：</p>
+<pre class="r"><code>library(ggsci)
+library(ggplot2)
+library(patchwork)</code></pre>
+<div id="离散型调色板" class="section level3">
+<h3>离散型调色板</h3>
+<p>载入数据：</p>
+<pre class="r"><code>data(&quot;diamonds&quot;)
+head(diamonds)</code></pre>
+<pre><code>## # A tibble: 6 × 10
+##   carat cut       color clarity depth table price     x     y     z
+##   &lt;dbl&gt; &lt;ord&gt;     &lt;ord&gt; &lt;ord&gt;   &lt;dbl&gt; &lt;dbl&gt; &lt;int&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
+## 1  0.23 Ideal     E     SI2      61.5    55   326  3.95  3.98  2.43
+## 2  0.21 Premium   E     SI1      59.8    61   326  3.89  3.84  2.31
+## 3  0.23 Good      E     VS1      56.9    65   327  4.05  4.07  2.31
+## 4  0.29 Premium   I     VS2      62.4    58   334  4.2   4.23  2.63
+## 5  0.31 Good      J     SI2      63.3    58   335  4.34  4.35  2.75
+## 6  0.24 Very Good J     VVS2     62.8    57   336  3.94  3.96  2.48</code></pre>
+<p>观察原始配色：</p>
+<pre class="r"><code>p1 &lt;- ggplot(subset(diamonds, carat &gt;=2.2),
+       aes(x = table, y = price, color = cut))+
+  geom_point(alpha = 0.7)+
+  geom_smooth(method = &quot;loess&quot;, alpha = 0.05, size = 1, span = 1) +
+  theme_bw()
+p2 &lt;- ggplot(
+  subset(diamonds, carat &gt; 2.2 &amp; depth &gt; 55 &amp; depth &lt; 70), 
+  aes(x = depth, fill = cut) 
+) +
+  geom_histogram(colour = &quot;black&quot;, binwidth = 1, position = &quot;dodge&quot;) +
+  theme_bw() 
+p1+p2</code></pre>
+<pre><code>## `geom_smooth()` using formula &#39;y ~ x&#39;</code></pre>
+<p><img src="/post/2022-11-14-r-ggsci/ggsci_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+<p>使用Nature配色：</p>
+<pre class="r"><code>p1 &lt;- p1 + scale_color_npg()
+p2 &lt;- p2 + scale_fill_npg()
+p1+p2</code></pre>
+<pre><code>## `geom_smooth()` using formula &#39;y ~ x&#39;</code></pre>
+<p><img src="/post/2022-11-14-r-ggsci/ggsci_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<p>AAAS配色：</p>
+<pre class="r"><code>p1 &lt;- p1 + scale_color_aaas()</code></pre>
+<pre><code>## Scale for &#39;colour&#39; is already present. Adding another scale for &#39;colour&#39;,
+## which will replace the existing scale.</code></pre>
+<pre class="r"><code>p2 &lt;- p2 + scale_fill_aaas()</code></pre>
+<pre><code>## Scale for &#39;fill&#39; is already present. Adding another scale for &#39;fill&#39;, which
+## will replace the existing scale.</code></pre>
+<pre class="r"><code>p1+p2</code></pre>
+<pre><code>## `geom_smooth()` using formula &#39;y ~ x&#39;</code></pre>
+<p><img src="/post/2022-11-14-r-ggsci/ggsci_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<p>新英格兰杂志：</p>
+<pre class="r"><code>p1 &lt;- p1 + scale_color_nejm()</code></pre>
+<pre><code>## Scale for &#39;colour&#39; is already present. Adding another scale for &#39;colour&#39;,
+## which will replace the existing scale.</code></pre>
+<pre class="r"><code>p2 &lt;- p2 + scale_fill_nejm()</code></pre>
+<pre><code>## Scale for &#39;fill&#39; is already present. Adding another scale for &#39;fill&#39;, which
+## will replace the existing scale.</code></pre>
+<pre class="r"><code>p1+p2</code></pre>
+<pre><code>## `geom_smooth()` using formula &#39;y ~ x&#39;</code></pre>
+<p><img src="/post/2022-11-14-r-ggsci/ggsci_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<p>柳叶刀：</p>
+<pre class="r"><code>p1 &lt;- p1 + scale_color_lancet()</code></pre>
+<pre><code>## Scale for &#39;colour&#39; is already present. Adding another scale for &#39;colour&#39;,
+## which will replace the existing scale.</code></pre>
+<pre class="r"><code>p2 &lt;- p2 + scale_fill_lancet()</code></pre>
+<pre><code>## Scale for &#39;fill&#39; is already present. Adding another scale for &#39;fill&#39;, which
+## will replace the existing scale.</code></pre>
+<pre class="r"><code>p1+p2</code></pre>
+<pre><code>## `geom_smooth()` using formula &#39;y ~ x&#39;</code></pre>
+<p><img src="/post/2022-11-14-r-ggsci/ggsci_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<p>美国医学会杂志：</p>
+<pre class="r"><code>p1 &lt;- p1 + scale_color_jama()</code></pre>
+<pre><code>## Scale for &#39;colour&#39; is already present. Adding another scale for &#39;colour&#39;,
+## which will replace the existing scale.</code></pre>
+<pre class="r"><code>p2 &lt;- p2 + scale_fill_jama()</code></pre>
+<pre><code>## Scale for &#39;fill&#39; is already present. Adding another scale for &#39;fill&#39;, which
+## will replace the existing scale.</code></pre>
+<pre class="r"><code>p1+p2</code></pre>
+<pre><code>## `geom_smooth()` using formula &#39;y ~ x&#39;</code></pre>
+<p><img src="/post/2022-11-14-r-ggsci/ggsci_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<p>临床肿瘤学杂志：</p>
+<pre class="r"><code>p1 &lt;- p1 + scale_color_jco()</code></pre>
+<pre><code>## Scale for &#39;colour&#39; is already present. Adding another scale for &#39;colour&#39;,
+## which will replace the existing scale.</code></pre>
+<pre class="r"><code>p2 &lt;- p2 + scale_fill_jco()</code></pre>
+<pre><code>## Scale for &#39;fill&#39; is already present. Adding another scale for &#39;fill&#39;, which
+## will replace the existing scale.</code></pre>
+<pre class="r"><code>p1+p2</code></pre>
+<pre><code>## `geom_smooth()` using formula &#39;y ~ x&#39;</code></pre>
+<p><img src="/post/2022-11-14-r-ggsci/ggsci_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+<p>辛普森：</p>
+<pre class="r"><code>p1 &lt;- p1 + scale_color_simpsons()</code></pre>
+<pre><code>## Scale for &#39;colour&#39; is already present. Adding another scale for &#39;colour&#39;,
+## which will replace the existing scale.</code></pre>
+<pre class="r"><code>p2 &lt;- p2 + scale_fill_simpsons()</code></pre>
+<pre><code>## Scale for &#39;fill&#39; is already present. Adding another scale for &#39;fill&#39;, which
+## will replace the existing scale.</code></pre>
+<pre class="r"><code>p1+p2</code></pre>
+<pre><code>## `geom_smooth()` using formula &#39;y ~ x&#39;</code></pre>
+<p><img src="/post/2022-11-14-r-ggsci/ggsci_files/figure-html/unnamed-chunk-10-1.png" width="672" /></p>
+</div>
+<div id="连续型调色板" class="section level3">
+<h3>连续型调色板</h3>
+<p>用相关性热图表示：</p>
+<pre class="r"><code>library(reshape2)
+data(mtcars)
+cor &lt;- cor(unname(cbind(mtcars, mtcars, mtcars, mtcars)))
+cor_melt &lt;- melt(cor)
+p3 &lt;- ggplot(
+  cor_melt,
+  aes(x = Var1, y = Var2, fill = value)
+) +
+  geom_tile(colour = &quot;black&quot;, size = 0.3) +
+  theme_bw() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank()
+  )
+p3</code></pre>
+<p><img src="/post/2022-11-14-r-ggsci/ggsci_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+<p>GSEA</p>
+<pre class="r"><code>p3_gsea &lt;- p3 + scale_fill_gsea()
+p3_gsea_inv &lt;- p3 + scale_fill_gsea(reverse = TRUE)
+p3_gsea + p3_gsea_inv</code></pre>
+<p><img src="/post/2022-11-14-r-ggsci/ggsci_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+</div>
+</div>

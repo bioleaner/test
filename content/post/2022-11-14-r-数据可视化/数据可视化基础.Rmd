@@ -12,9 +12,10 @@ output:
 
 ## 数据可视化基础
 
-```{r}
+```{r message=FALSE}
 library(ggplot2)
 library(patchwork)
+library(tidyverse)
 ```
 
 ggplot2包包括九个部件：
@@ -361,7 +362,7 @@ ggplot(mpg, aes(x = displ, y = hwy))+
 
 ```{r include=FALSE}
 scale_colour_manual(
-  palette = function(), 
+  palette = function() 
   limits = NULL,
   name = waiver(),
   labels = waiver(),

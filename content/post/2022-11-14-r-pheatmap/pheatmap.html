@@ -1,0 +1,163 @@
+---
+title: "pheatmap"
+author:
+  - 杨洪冰
+documentclass: ctexart
+keywords:
+  - 中文
+  - R Markdown
+output:
+  rticles::ctex:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+---
+
+
+
+<div id="pheatmap包学习" class="section level2">
+<h2>pheatmap包学习</h2>
+<p>pheatmap是R里面绘制热图的傻瓜式包，可以绘制聚类热图，首先加载这个包和示例数据：</p>
+<pre class="r"><code>library(pheatmap)
+library(readr)
+library(dplyr)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;dplyr&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:stats&#39;:
+## 
+##     filter, lag</code></pre>
+<pre><code>## The following objects are masked from &#39;package:base&#39;:
+## 
+##     intersect, setdiff, setequal, union</code></pre>
+<pre class="r"><code>library(tibble)
+data &lt;- read_delim(&#39;D:/R/示例数据.txt&#39;, delim = &#39;\t&#39;) %&gt;% column_to_rownames(var = &#39;genus&#39;)</code></pre>
+<pre><code>## Rows: 28 Columns: 11</code></pre>
+<pre><code>## ── Column specification ────────────────────────────────────────────────────────
+## Delimiter: &quot;\t&quot;
+## chr  (1): genus
+## dbl (10): A, B, C, D, E, F, G, H, I, Z
+## 
+## ℹ Use `spec()` to retrieve the full column specification for this data.
+## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+<pre class="r"><code>#data &lt;- read.table(&#39;示例数据.txt&#39;, sep = &#39;\t&#39;, header = T, row.names = 1)
+#vroom::vroom(&#39;示例数据.txt&#39;, delim = &#39;\t&#39;) %&gt;% column_to_rownames(var = &#39;genus&#39;)</code></pre>
+<p>可以直接出图：</p>
+<pre class="r"><code>pheatmap(data)</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+<p>但是可以发现热图整体偏蓝，因此对数据进行标准化：</p>
+<pre class="r"><code>data.1 &lt;- vegan::decostand(data, &#39;standardize&#39;, MARGIN = 1)
+pheatmap(data.1)</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+<div id="热图美化" class="section level3">
+<h3>热图美化</h3>
+<div id="对热图聚类修改" class="section level4">
+<h4>对热图聚类修改</h4>
+<pre class="r"><code>pheatmap(data.1, clustering_method = &#39;mcquitty&#39;)##聚类方法修改</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<pre class="r"><code>pheatmap(data.1, clustering_distance_rows = &#39;correlation&#39;) #行聚类距离</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-4-2.png" width="672" /></p>
+<pre class="r"><code>pheatmap(data.1, cluster_rows = F, cluster_cols = F)#取消聚类</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-4-3.png" width="672" /></p>
+<pre class="r"><code>pheatmap(data.1, treeheight_row = 50)#设置聚类树高，行列都可以</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-4-4.png" width="672" /></p>
+</div>
+<div id="修改颜色" class="section level4">
+<h4>修改颜色</h4>
+<pre class="r"><code>pheatmap(data.1, color = colorRampPalette(c(&quot;navy&quot;, &quot;white&quot;, &quot;firebrick3&quot;))(50)) #修改颜色</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+</div>
+<div id="单元格设置" class="section level4">
+<h4>单元格设置</h4>
+<pre class="r"><code>pheatmap(data.1, border_color = &#39;black&#39;)#设置边框为黑色</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<pre class="r"><code>pheatmap(data.1, border = F) #去掉边框</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-6-2.png" width="672" /></p>
+<pre class="r"><code>pheatmap(data.1,cellwidth = 20, cellheight = 20) #修改单元格大小</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-6-3.png" width="672" /></p>
+<pre class="r"><code>pheatmap(data.1, border_color = &quot;black&quot;, #边框线为黑色
+         display_numbers = TRUE,         #热图格子中显示相应的数值
+         number_color = &quot;black&quot;,         #字体颜色为黑色
+         fontsize=10,                    #字体大小为10
+         number_format = &quot;%.1f&quot;)         #保留一位小数</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-6-4.png" width="672" /></p>
+<pre class="r"><code>         #fontface=&quot;italic&quot;)              #将字体设置为斜体
+#自定义，让数值大于1.5的用*显示
+pheatmap(data.1, display_numbers = matrix(ifelse(data.1 &gt; 1.5, &quot;*&quot;,&quot; &quot;), nrow(data.1)))</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-6-5.png" width="672" /></p>
+</div>
+<div id="图例设置" class="section level4">
+<h4>图例设置</h4>
+<pre class="r"><code># 设定图例显示范围，添加图例标签
+pheatmap(data.1, legend_breaks = c(-2:2), 
+    legend_labels = c(&quot;-1.0&quot;,&quot;0.0&quot;,&quot;1.0&quot;,&quot;2.0&quot;,&quot;3.0&quot;))  </code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<pre class="r"><code># legend = FALSE 去掉图例
+pheatmap(data.1,legend = FALSE)</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-7-2.png" width="672" /></p>
+<pre class="r"><code>#去除行名
+pheatmap(data.1,show_rownames = FALSE)</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-7-3.png" width="672" /></p>
+<pre class="r"><code>#去除列名
+pheatmap(data.1, show_colnames = FALSE)</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-7-4.png" width="672" /></p>
+</div>
+<div id="注释设置" class="section level4">
+<h4>注释设置</h4>
+<p>先制作注释数据：</p>
+<pre class="r"><code>anno &lt;- c(rep(&#39;phylum1&#39;, 12), rep(&#39;phylum2&#39;, 16))
+annotation_row &lt;- as.data.frame(anno)
+rownames(annotation_row) &lt;- rownames(data.1)
+colnames(annotation_row) &lt;- c(&#39;genus&#39;)
+
+annotation_col &lt;- as.data.frame(cbind(c(rep(&#39;X1&#39;,5), rep(&#39;X2&#39;, 5)), 
+                                      c(rep(seq(1:5),2))))
+rownames(annotation_col) &lt;- colnames(data.1)
+colnames(annotation_col) &lt;- c(&#39;environment&#39;,&#39;species&#39;)
+
+pheatmap(data.1, annotation_row = annotation_row, annotation_col = annotation_col)</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<p>删除注释图例：</p>
+<pre class="r"><code>pheatmap(data.1, annotation_col = annotation_col, annotation_row = annotation_row, annotation_legend = FALSE)</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+<p>使用自定义的颜色：</p>
+<pre class="r"><code>ann_colors &lt;- list(
+  species= c(&quot;white&quot;, &quot;tomato4&quot;),
+   environment = c(X1 = &quot;slateblue3&quot;, X2 = &quot;red2&quot;),
+  genus = c(phylum1 = &quot;#7D26CD&quot;, phylum2 = &quot;#E7298A&quot;)
+)
+pheatmap(data.1, annotation_row = annotation_row, annotation_col = annotation_col, 
+         annotation_colors = ann_colors[3])</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-10-1.png" width="672" /></p>
+<p>将热图分割开：</p>
+<pre class="r"><code>pheatmap(data.1, cutree_rows = 3, cutree_cols = 2)</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+<p>使用gaps_row或gaps_col可以在指定位置添加分割，不过只有在cluster_rows取FALSE时才成立：</p>
+<pre class="r"><code>pheatmap(data.1, cluster_rows = FALSE,
+         gaps_row = c(7, 10))</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+</div>
+<div id="自定义行列标签" class="section level4">
+<h4>自定义行列标签</h4>
+<pre class="r"><code>labels_row &lt;- paste0(&#39;genus&#39;, 1:28)
+pheatmap(data.1, labels_row = labels_row)</code></pre>
+<p><img src="/post/2022-11-14-r-pheatmap/pheatmap_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
+</div>
+<div id="保存pdf" class="section level4">
+<h4>保存pdf</h4>
+<pre class="r"><code>pheatmap(data.1, annotation_row = annotation_row, 
+         annotation_col = annotation_col,
+         cellwidth = 20, cellheight = 15,
+         filename = &#39;D:/R/data.pdf&#39;)</code></pre>
+<pre class="r"><code>result &lt;- pheatmap(data.1, annotation_row = annotation_row, 
+         annotation_col = annotation_col,
+         cellwidth = 20, cellheight = 15,
+         filename = &#39;D:/R/data.pdf&#39;)
+summary(result)</code></pre>
+<pre><code>##          Length Class  Mode   
+## tree_row  7     hclust list   
+## tree_col  7     hclust list   
+## kmeans    1     -none- logical
+## gtable   11     gtable list</code></pre>
+</div>
+</div>
+</div>
