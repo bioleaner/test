@@ -1,8 +1,8 @@
-baseURL: https://example.com
+baseURL: /
 languageCode: en-us
 defaultContentLanguage: en
 title: Cupper
-theme: cupper-hugo-theme
+theme: 杨洪冰的博客
 googleAnalytics: UA-123456789-1
 disqusShortname: yourdiscussshortname
 enableGitInfo: true
