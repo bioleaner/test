@@ -1,7 +1,7 @@
 DefaultContentLanguage: en
-author: He Yeshuang
-baseURL: https://example.com/
-copyright: Copyright © 2008–2019
+author: 杨洪冰
+baseURL: /
+copyright: Copyright © 2008–2022
 disqusShortname: YOURSHORTNAME
 enableInlineShortcodes: yes
 footnoteReturnLinkContents: ^
@@ -9,7 +9,7 @@ googleAnalytics: UA-FAKE
 hasCJKLanguage: yes
 languageCode: cn
 theme: hugo-theme-tokiwa
-title: Hugo Themes
+title: 杨洪冰的博客
 markup:
   goldmark:
     renderer:
