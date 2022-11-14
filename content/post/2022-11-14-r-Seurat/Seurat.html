@@ -1,0 +1,435 @@
+---
+title: "Seurat处理单细胞测序数据"
+author:
+  - 杨洪冰
+documentclass: ctexart
+output:
+  rticles::ctex:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+---
+
+
+
+<div id="scrnaseq" class="section level2">
+<h2>scRNAseq</h2>
+<p>通过这篇文章学习单细胞测序的分析。</p>
+<div id="安装包" class="section level3">
+<h3>安装包</h3>
+<p>这里我们需要单细胞数据分析的包Seurat，数据处理的包dplyr，绘图包ggplot2，拼图包patchwork.</p>
+<pre class="r"><code>library(Seurat)</code></pre>
+<pre><code>## Attaching SeuratObject</code></pre>
+<pre><code>## Attaching sp</code></pre>
+<pre class="r"><code>library(dplyr)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;dplyr&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:stats&#39;:
+## 
+##     filter, lag</code></pre>
+<pre><code>## The following objects are masked from &#39;package:base&#39;:
+## 
+##     intersect, setdiff, setequal, union</code></pre>
+<pre class="r"><code>library(ggplot2)
+library(patchwork)</code></pre>
+</div>
+<div id="加载数据" class="section level3">
+<h3>加载数据</h3>
+<pre class="r"><code>data &lt;- Read10X(&#39;D:/R/hg19/&#39;)</code></pre>
+<p>观察一下数据：</p>
+<pre class="r"><code>dim(data)</code></pre>
+<pre><code>## [1] 32738  2700</code></pre>
+<pre class="r"><code>str(data)</code></pre>
+<pre><code>## Formal class &#39;dgCMatrix&#39; [package &quot;Matrix&quot;] with 6 slots
+##   ..@ i       : int [1:2286884] 70 166 178 326 363 410 412 492 494 495 ...
+##   ..@ p       : int [1:2701] 0 781 2133 3264 4224 4746 5528 6311 7101 7634 ...
+##   ..@ Dim     : int [1:2] 32738 2700
+##   ..@ Dimnames:List of 2
+##   .. ..$ : chr [1:32738] &quot;MIR1302-10&quot; &quot;FAM138A&quot; &quot;OR4F5&quot; &quot;RP11-34P13.7&quot; ...
+##   .. ..$ : chr [1:2700] &quot;AAACATACAACCAC-1&quot; &quot;AAACATTGAGCTAC-1&quot; &quot;AAACATTGATCAGC-1&quot; &quot;AAACCGTGCTTCCG-1&quot; ...
+##   ..@ x       : num [1:2286884] 1 1 2 1 1 1 1 41 1 1 ...
+##   ..@ factors : list()</code></pre>
+<pre class="r"><code>class(data)</code></pre>
+<pre><code>## [1] &quot;dgCMatrix&quot;
+## attr(,&quot;package&quot;)
+## [1] &quot;Matrix&quot;</code></pre>
+<pre class="r"><code>data[1:5,1:5]</code></pre>
+<pre><code>## 5 x 5 sparse Matrix of class &quot;dgCMatrix&quot;
+##              AAACATACAACCAC-1 AAACATTGAGCTAC-1 AAACATTGATCAGC-1
+## MIR1302-10                  .                .                .
+## FAM138A                     .                .                .
+## OR4F5                       .                .                .
+## RP11-34P13.7                .                .                .
+## RP11-34P13.8                .                .                .
+##              AAACCGTGCTTCCG-1 AAACCGTGTATGCG-1
+## MIR1302-10                  .                .
+## FAM138A                     .                .
+## OR4F5                       .                .
+## RP11-34P13.7                .                .
+## RP11-34P13.8                .                .</code></pre>
+<p>表达矩阵每一行代表一个基因在不同细胞中的表达，列代表一个细胞中基因的表达情况。其中，表达矩阵是以稀疏矩阵的形式存放的，即0的位置使用.来代替。</p>
+<pre class="r"><code>x &lt;- apply(data, 2, function(x) sum(x&gt;0))
+
+hist(x, breaks = 100)</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<p>由此可见，大部分细胞表达基因数大致为500-1000。</p>
+<pre class="r"><code>x &lt;- colSums(data)
+hist(x, breaks = 100, main = &#39;sum-expression for gene&#39;)</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+</div>
+<div id="创建seurat对象" class="section level3">
+<h3>创建Seurat对象</h3>
+<pre class="r"><code>pbmc &lt;- CreateSeuratObject(counts=data,
+                           project=&quot;course&quot;,
+                           min.cells = 3,
+                           min.features=200)</code></pre>
+<pre><code>## Warning: Feature names cannot have underscores (&#39;_&#39;), replacing with dashes
+## (&#39;-&#39;)</code></pre>
+<p>这里让我们学习<code>CreateSeuratObject</code>函数，在命令行中敲入<code>?CreateSeuratObject</code>即可，来看一下重要的参数：</p>
+<ul>
+<li><p>counts: 表示输入的基因表达矩阵。</p></li>
+<li><p>project: 该Seurat对象所使用的的project名字。</p></li>
+<li><p>min.cells: 这是一个筛选的条件，即细胞中基因表达数小于此值的细胞将会被舍弃。因此，可以减小这个值以囊括更多的细胞。</p></li>
+<li><p>min.features: 这也是一个筛选的条件，表示基因至少应该在min.features个细胞中被检测到，否则将不会被保留。</p></li>
+</ul>
+</div>
+<div id="数据预处理" class="section level3">
+<h3>数据预处理</h3>
+<p>这部分将基于质控、标准化和检测到的变化基因对数据进行筛选。</p>
+<div id="对细胞的质控" class="section level4">
+<h4>对细胞的质控</h4>
+<p>参考文章：<a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4758103/">Classification of low quality cells from single-cell RNA-seq data</a>.。分别从以下角度对数据进行质控：</p>
+<ul>
+<li><p>单个细胞中检测到单个基因的数目。</p></li>
+<li><p>低质量的细胞以及空泡油滴只能检测到很少的基因数，相反，包含多个细胞的油滴将会检测到异常多的基因。</p></li>
+<li><p>一个细胞中检测到的基因总数。</p></li>
+<li><p>检测到线粒体的基因数百分比：由于低质量细胞或者垂死细胞通常会有线粒体污染，因此线粒体基因占比多的细胞通常会被舍弃。这里使用<code>PercentageFeatureSet</code>函数计算线粒体QC，计算线粒体基因所占百分比。基因名以MT-开始的基因被定义为线粒体基因。</p></li>
+</ul>
+<div id="线粒体基因占比计算与观察" class="section level5">
+<h5>线粒体基因占比计算与观察</h5>
+<pre class="r"><code>pbmc[[&quot;percent.mt&quot;]] &lt;- PercentageFeatureSet(pbmc, pattern = &quot;^MT-&quot;)
+head(pbmc@meta.data)</code></pre>
+<pre><code>##                  orig.ident nCount_RNA nFeature_RNA percent.mt
+## AAACATACAACCAC-1     course       2419          779  3.0177759
+## AAACATTGAGCTAC-1     course       4903         1352  3.7935958
+## AAACATTGATCAGC-1     course       3147         1129  0.8897363
+## AAACCGTGCTTCCG-1     course       2639          960  1.7430845
+## AAACCGTGTATGCG-1     course        980          521  1.2244898
+## AAACGCACTGGTAC-1     course       2163          781  1.6643551</code></pre>
+<p>绘制小提琴图展示基因数目，UMI数目和线粒体基因占比。</p>
+<pre class="r"><code>VlnPlot(pbmc, features = c(&quot;nFeature_RNA&quot;, &quot;nCount_RNA&quot;, &quot;percent.mt&quot;), ncol = 3)</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<p>唯一分子标记（UMI）是一种分子条形码，可以在测序过程中错误校正，提高准确性。这些分子条形码均为短序列，可特异性的标记样本文库中的每个分子。UMI可用于各种测序应用，许多是与DNA和cDNA的PCR重复相关的应用。RNA-seq基因表达分析和其他定量测序方法也可以采用UMI来去除重复。</p>
+<p>查看基因数目、UMI数目和线粒体基因占比的关系。</p>
+<pre class="r"><code>plot1 &lt;- FeatureScatter(pbmc, feature1 = &quot;nCount_RNA&quot;, feature2 = &quot;percent.mt&quot;)
+plot2 &lt;- FeatureScatter(pbmc, feature1 = &quot;nCount_RNA&quot;, feature2 = &quot;nFeature_RNA&quot;)
+plot3 &lt;- FeatureScatter(pbmc, feature1 = &quot;percent.mt&quot;, feature2 = &quot;nFeature_RNA&quot;)
+plot1 + plot2 + plot3</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+</div>
+<div id="开始质控" class="section level5">
+<h5>开始质控</h5>
+<p>这次质控的筛选标准如下</p>
+<ul>
+<li><p>筛选检测基因数大于2500或小于200的细胞。</p></li>
+<li><p>单个细胞中线粒体基因占比超过5%的细胞。</p></li>
+</ul>
+<pre class="r"><code>pbmc &lt;- subset(pbmc, subset = nFeature_RNA &gt; 200 &amp; nFeature_RNA &lt; 2500 &amp; percent.mt &lt; 5)</code></pre>
+<p>对质控后的数据绘制小提琴图：</p>
+<pre class="r"><code>VlnPlot(pbmc, features = c(&quot;nFeature_RNA&quot;, &quot;nCount_RNA&quot;, &quot;percent.mt&quot;), ncol = 3)</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+</div>
+</div>
+<div id="数据的标准化" class="section level4">
+<h4>数据的标准化</h4>
+<p>在这里默认采用的标准化方法为<code>LogNormalize</code>，即先对每个细胞的基因表达乘以比例系数（一般为10000），然后log取对数。标准化的结果存放在<code>pbmc@assays$RNA@data</code>中。标准化前的细胞表达量：</p>
+<pre class="r"><code>hist(colSums(pbmc$RNA@data),
+     breaks = 100,
+     main = &quot;Total expression before normalisation&quot;,
+     xlab = &quot;Sum of expression&quot;)</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+<p>标准化（标准化方法和比例因子都是默认的，可以直接不写或使用其他值）：</p>
+<pre class="r"><code>pbmc &lt;- NormalizeData(pbmc, normalization.method = &#39;LogNormalize&#39;, scale.factor = 10000)</code></pre>
+<p>标准化后的细胞表达量：</p>
+<pre class="r"><code>hist(colSums(pbmc$RNA@data),
+     breaks = 100,
+     main = &quot;Total expression after normalisation&quot;,
+     xlab = &quot;Sum of expression&quot;)  </code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-14-1.png" width="672" /></p>
+<p>可以看到，现在的数据大致呈正态分布，可以满足我们的需求。</p>
+</div>
+<div id="变化基因的鉴定" class="section level4">
+<h4>变化基因的鉴定</h4>
+<p>对单细胞测序数据进行分析的主要目的就是寻找差异基因，即在不同细胞中表达有明显差异的基因。因此，我们需要鉴定在细胞间表达高度变化的基因。这里用到<code>FindVariableFeatures()</code>函数，主要方法是计算每个基因的均值与方差，并直接模拟其关系，函数默认返回2000个基因。</p>
+<pre class="r"><code>pbmc &lt;- FindVariableFeatures(pbmc, selection.method = &quot;vst&quot;, nfeatures = 2000)
+### 10个差异表达最剧烈的基因
+top10 &lt;- head(VariableFeatures(pbmc), 10) #head(pbmc$RNA@var.features,10)
+### 画出表达差异的基因，观察分布
+plot1 &lt;- VariableFeaturePlot(pbmc)
+# 画出表达变化的基因，标记前10个基因
+plot2 &lt;- LabelPoints(plot = plot1, points = top10, repel = TRUE)</code></pre>
+<pre><code>## When using repel, set xnudge and ynudge to 0 for optimal results</code></pre>
+<pre class="r"><code>plot1</code></pre>
+<pre><code>## Warning: Transformation introduced infinite values in continuous x-axis</code></pre>
+<pre><code>## Warning: Removed 1 rows containing missing values (geom_point).</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+<pre class="r"><code>plot2</code></pre>
+<pre><code>## Warning: Transformation introduced infinite values in continuous x-axis
+## Removed 1 rows containing missing values (geom_point).</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-15-2.png" width="672" /></p>
+</div>
+</div>
+<div id="数据缩放" class="section level3">
+<h3>数据缩放</h3>
+<p>线性转换缩放数据，<code>ScaleData()</code>函数实现该功能，通过这一步的缩放，得到基因表达的均值为0，方差为1，结果存放在<code>pbmc[["RNA"]]@scale.data</code>中。</p>
+<pre class="r"><code>all.genes &lt;- rownames(pbmc)
+pbmc &lt;- ScaleData(pbmc, features = all.genes) #features默认为variable features.</code></pre>
+<pre><code>## Centering and scaling data matrix</code></pre>
+<pre class="r"><code>### 移除影响方差的因素
+pbmc &lt;- ScaleData(pbmc, vars.to.regress = &quot;percent.mt&quot;)</code></pre>
+<pre><code>## Regressing out percent.mt
+## Centering and scaling data matrix</code></pre>
+</div>
+<div id="数据降维" class="section level3">
+<h3>数据降维</h3>
+<div id="pca" class="section level4">
+<h4>PCA</h4>
+<p>首先采用主成分分析PCA对数据进行线性降维，默认对前面取出2000基因进行降维，使用features参数可以重新指定数据集。数据存放在<code>pbmc@reductions$pca</code>中。</p>
+<pre class="r"><code>pbmc &lt;- RunPCA(pbmc, features = VariableFeatures(object = pbmc))</code></pre>
+<pre><code>## PC_ 1 
+## Positive:  CST3, TYROBP, LST1, AIF1, FTL, FTH1, LYZ, FCN1, S100A9, TYMP 
+##     FCER1G, CFD, LGALS1, LGALS2, SERPINA1, S100A8, CTSS, IFITM3, SPI1, CFP 
+##     PSAP, IFI30, COTL1, SAT1, S100A11, NPC2, GRN, LGALS3, GSTP1, PYCARD 
+## Negative:  MALAT1, LTB, IL32, IL7R, CD2, B2M, ACAP1, CTSW, STK17A, CD27 
+##     CD247, CCL5, GIMAP5, GZMA, AQP3, CST7, TRAF3IP3, SELL, GZMK, HOPX 
+##     MAL, MYC, ITM2A, ETS1, LYAR, GIMAP7, KLRG1, NKG7, ZAP70, BEX2 
+## PC_ 2 
+## Positive:  CD79A, MS4A1, TCL1A, HLA-DQA1, HLA-DQB1, HLA-DRA, LINC00926, CD79B, HLA-DRB1, CD74 
+##     HLA-DMA, HLA-DPB1, HLA-DQA2, CD37, HLA-DRB5, HLA-DMB, HLA-DPA1, FCRLA, HVCN1, LTB 
+##     BLNK, P2RX5, IGLL5, IRF8, SWAP70, ARHGAP24, FCGR2B, SMIM14, PPP1R14A, C16orf74 
+## Negative:  NKG7, PRF1, CST7, GZMA, GZMB, FGFBP2, CTSW, GNLY, B2M, SPON2 
+##     CCL4, GZMH, FCGR3A, CCL5, CD247, XCL2, CLIC3, AKR1C3, SRGN, HOPX 
+##     TTC38, CTSC, APMAP, S100A4, IGFBP7, ANXA1, ID2, IL32, XCL1, RHOC 
+## PC_ 3 
+## Positive:  HLA-DQA1, CD79A, CD79B, HLA-DQB1, HLA-DPA1, HLA-DPB1, CD74, MS4A1, HLA-DRB1, HLA-DRA 
+##     HLA-DRB5, HLA-DQA2, TCL1A, LINC00926, HLA-DMB, HLA-DMA, CD37, HVCN1, FCRLA, IRF8 
+##     PLAC8, BLNK, MALAT1, SMIM14, PLD4, IGLL5, SWAP70, P2RX5, LAT2, FCGR3A 
+## Negative:  PPBP, PF4, SDPR, SPARC, GNG11, NRGN, GP9, RGS18, TUBB1, CLU 
+##     HIST1H2AC, AP001189.4, ITGA2B, CD9, TMEM40, PTCRA, CA2, ACRBP, MMD, TREML1 
+##     NGFRAP1, F13A1, SEPT5, RUFY1, TSC22D1, CMTM5, MPP1, MYL9, RP11-367G6.3, GP1BA 
+## PC_ 4 
+## Positive:  HLA-DQA1, CD79B, CD79A, MS4A1, HLA-DQB1, CD74, HLA-DPB1, HIST1H2AC, HLA-DPA1, HLA-DRB1 
+##     TCL1A, PF4, HLA-DQA2, SDPR, HLA-DRA, LINC00926, PPBP, GNG11, HLA-DRB5, SPARC 
+##     GP9, PTCRA, CA2, AP001189.4, CD9, NRGN, RGS18, GZMB, CLU, TUBB1 
+## Negative:  VIM, IL7R, S100A6, S100A8, IL32, S100A4, GIMAP7, S100A10, S100A9, MAL 
+##     AQP3, CD14, CD2, LGALS2, FYB, GIMAP4, ANXA1, RBP7, CD27, FCN1 
+##     LYZ, S100A12, MS4A6A, GIMAP5, S100A11, FOLR3, TRABD2A, AIF1, IL8, TMSB4X 
+## PC_ 5 
+## Positive:  GZMB, FGFBP2, S100A8, NKG7, GNLY, CCL4, PRF1, CST7, SPON2, GZMA 
+##     GZMH, LGALS2, S100A9, CCL3, XCL2, CD14, CLIC3, CTSW, MS4A6A, GSTP1 
+##     S100A12, RBP7, IGFBP7, FOLR3, AKR1C3, TYROBP, CCL5, TTC38, XCL1, APMAP 
+## Negative:  LTB, IL7R, CKB, MS4A7, RP11-290F20.3, AQP3, SIGLEC10, VIM, CYTIP, HMOX1 
+##     LILRB2, PTGES3, HN1, CD2, FAM110A, CD27, ANXA5, CTD-2006K23.1, MAL, VMO1 
+##     CORO1B, TUBA1B, LILRA3, GDI2, TRADD, ATP1A1, IL32, ABRACL, CCDC109B, PPA1</code></pre>
+<p>首先查看对每个主成分影响大的基因集。</p>
+<pre class="r"><code>print(pbmc[[&quot;pca&quot;]], dims = 1:5, nfeatures = 5)</code></pre>
+<pre><code>## PC_ 1 
+## Positive:  CST3, TYROBP, LST1, AIF1, FTL 
+## Negative:  MALAT1, LTB, IL32, IL7R, CD2 
+## PC_ 2 
+## Positive:  CD79A, MS4A1, TCL1A, HLA-DQA1, HLA-DQB1 
+## Negative:  NKG7, PRF1, CST7, GZMA, GZMB 
+## PC_ 3 
+## Positive:  HLA-DQA1, CD79A, CD79B, HLA-DQB1, HLA-DPA1 
+## Negative:  PPBP, PF4, SDPR, SPARC, GNG11 
+## PC_ 4 
+## Positive:  HLA-DQA1, CD79B, CD79A, MS4A1, HLA-DQB1 
+## Negative:  VIM, IL7R, S100A6, S100A8, IL32 
+## PC_ 5 
+## Positive:  GZMB, FGFBP2, S100A8, NKG7, GNLY 
+## Negative:  LTB, IL7R, CKB, MS4A7, RP11-290F20.3</code></pre>
+<p><code>VizDimLoadings</code>, <code>DimPlot</code>, 和 <code>DimHeatmap</code>可以从基因或细胞角度可视化pca结果。</p>
+<p>可视化对每个主成分影响较大的基因集。</p>
+<pre class="r"><code>VizDimLoadings(pbmc, dims = 1:2, 
+               nfeatures = 30,
+               col = &#39;blue&#39;,
+               reduction = &quot;pca&quot;)</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-19-1.png" width="672" /></p>
+<p>两个主成分的展示：</p>
+<pre class="r"><code>DimPlot(pbmc, 
+        dims = c(1,2),repel = F,
+        reduction = &quot;pca&quot;,split.by = &#39;ident&#39;)</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-20-1.png" width="672" /></p>
+<p>DimHeatmap绘制基于单个主成分的热图，细胞和基因的排序都是基于他们的主成分分数。对于数据异质性的探索是很有帮助的，可以帮助用户选择用于下游分析的主成分维度。</p>
+<pre class="r"><code>DimHeatmap(pbmc, dims = 1, 
+           nfeatures = 30,
+           cells = 500, balanced = TRUE)</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-21-1.png" width="672" /></p>
+<p>同时展示多个成分：</p>
+<pre class="r"><code>DimHeatmap(pbmc, dims = 1:15, cells = 500, balanced = TRUE)</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-22-1.png" width="672" /></p>
+</div>
+<div id="数据维度确定" class="section level4">
+<h4>数据维度确定</h4>
+<p>为避免单个基因的影响，Seurat聚类细胞时常使用的是PCA结果，但需要确定使用多少个主成分用于后续分析。一般有两种方法，一种是基于零分布的统计检验方法，这种方法耗时长且可能不会返回明确结果。另一种是主成分分析常用的启发式评估。</p>
+<div id="jackstraw" class="section level5">
+<h5>JackStraw()</h5>
+<p>在JackStraw()函数中, 使用基于零分布的置换检验方法。随机抽取一部分基因(默认1%)然后进行pca分析得到pca分数，将这部分基因的pca分数与先前计算的pca分数进行比较得到显著性p-Value。根据主成分（pc）所包含基因的p-value进行判断选择主成分。最终的结果是每个基因与每个主成分的关联的p-Value。保留下来的主成分是那些富集小的p-Value基因的主成分。</p>
+<pre class="r"><code>pbmc &lt;- JackStraw(pbmc, num.replicate = 100)
+pbmc &lt;- ScoreJackStraw(pbmc, dims = 1:20)</code></pre>
+<p>JackStrawPlot()函数提供可视化方法，用于比较每一个主成分的p-value的分布，虚线是均匀分布；显著的主成分富集有小p-Value基因，实线位于虚线左上方。下图表明保留10个pca主成分用于后续分析是比较合理的。</p>
+<pre class="r"><code>JackStrawPlot(pbmc, dims = 1:15)</code></pre>
+<pre><code>## Warning: Removed 23407 rows containing missing values (geom_point).</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-24-1.png" width="672" /></p>
+<pre class="r"><code>ElbowPlot(pbmc)</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-25-1.png" width="672" /></p>
+<p>启发式评估方法生成一个Elbow plot图。在图中展示了每个主成分对数据方差的解释情况（百分比表示），并进行排序。根据自己需要选择主成分，图中发现第9个主成分是一个拐点，后续的主成分(PC)变化都不大了。</p>
+</div>
+</div>
+</div>
+<div id="聚类" class="section level3">
+<h3>聚类</h3>
+<p>Seurat v3应用基于图形的聚类方法，例如KNN方法。具有相似基因表达模式的细胞之间绘制边缘，然后将他们划分为一个内联群体。</p>
+<p>在PhenoGraph中，首先基于pca维度中（先前计算的pca数据）计算欧式距离（the euclidean distance），然后根据两个细胞在局部的重合情况（Jaccard 相似系数）优化两个细胞之间的边缘权值。此步骤内置于FindNeighbors函数，输入时先前确定的pc数据。</p>
+<p>为了聚类细胞，接下来应用模块化优化技术迭代将细胞聚集在一起。（the Louvain algorithm (default) or SLM <span class="math display">\[SLM, Blondel et al., Journal of Statistical Mechanics\]</span>），FindClusters函数实现这一功能，其中需要注意resolution参数，该参数设置下游聚类分析的”granularity”，更大的resolution会导致跟多的细胞类群。3000左右的细胞量，设置resolution为0.4-1.2是比较合适的。细胞数据集越大，需要更大的resolution参数, 会获得更多的细胞聚类。</p>
+<pre class="r"><code>pbmc &lt;- FindNeighbors(pbmc, dims = 1:10) #根据前面选择维度为10</code></pre>
+<pre><code>## Computing nearest neighbor graph</code></pre>
+<pre><code>## Computing SNN</code></pre>
+<pre class="r"><code>pbmc &lt;- FindClusters(pbmc, resolution = 0.5)</code></pre>
+<pre><code>## Modularity Optimizer version 1.3.0 by Ludo Waltman and Nees Jan van Eck
+## 
+## Number of nodes: 2638
+## Number of edges: 95893
+## 
+## Running Louvain algorithm...
+## Maximum modularity in 10 random starts: 0.8735
+## Number of communities: 9
+## Elapsed time: 0 seconds</code></pre>
+<p>查看细胞属于那个类群可以使用函数Idents。</p>
+<pre class="r"><code>head(Idents(pbmc))</code></pre>
+<pre><code>## AAACATACAACCAC-1 AAACATTGAGCTAC-1 AAACATTGATCAGC-1 AAACCGTGCTTCCG-1 
+##                0                3                2                1 
+## AAACCGTGTATGCG-1 AAACGCACTGGTAC-1 
+##                6                2 
+## Levels: 0 1 2 3 4 5 6 7 8</code></pre>
+</div>
+<div id="非线性降维" class="section level3">
+<h3>非线性降维</h3>
+<p>这一步建议使用的维度与PCA一致。</p>
+<pre class="r"><code>pbmc &lt;- RunUMAP(pbmc, dims = 1:10)</code></pre>
+<pre><code>## Warning: The default method for RunUMAP has changed from calling Python UMAP via reticulate to the R-native UWOT using the cosine metric
+## To use Python UMAP via reticulate, set umap.method to &#39;umap-learn&#39; and metric to &#39;correlation&#39;
+## This message will be shown once per session</code></pre>
+<pre><code>## 17:34:01 UMAP embedding parameters a = 0.9922 b = 1.112</code></pre>
+<pre><code>## 17:34:01 Read 2638 rows and found 10 numeric columns</code></pre>
+<pre><code>## 17:34:01 Using Annoy for neighbor search, n_neighbors = 30</code></pre>
+<pre><code>## 17:34:01 Building Annoy index with metric = cosine, n_trees = 50</code></pre>
+<pre><code>## 0%   10   20   30   40   50   60   70   80   90   100%</code></pre>
+<pre><code>## [----|----|----|----|----|----|----|----|----|----|</code></pre>
+<pre><code>## **************************************************|
+## 17:34:02 Writing NN index file to temp file C:\Users\lenovo\AppData\Local\Temp\RtmpMpuupg\file1b68fc86c05
+## 17:34:02 Searching Annoy index using 1 thread, search_k = 3000
+## 17:34:03 Annoy recall = 100%
+## 17:34:04 Commencing smooth kNN distance calibration using 1 thread with target n_neighbors = 30
+## 17:34:05 Initializing from normalized Laplacian + noise (using irlba)
+## 17:34:05 Commencing optimization for 500 epochs, with 106338 positive edges
+## 17:34:13 Optimization finished</code></pre>
+<p>画图展示：</p>
+<pre class="r"><code> DimPlot(pbmc, reduction = &quot;umap&quot;)</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-29-1.png" width="672" /></p>
+<p>为聚类添加标签：</p>
+<pre class="r"><code>DimPlot(pbmc, reduction = &quot;umap&quot;,label = TRUE)</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-30-1.png" width="672" /></p>
+<pre class="r"><code>LabelClusters(DimPlot(pbmc, reduction = &quot;umap&quot;),id = &#39;ident&#39;)</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-30-2.png" width="672" /></p>
+<p>此时可以保存数据，方便下次直接导入数据绘制图片：</p>
+<pre class="r"><code>#saveRDS(pbmc, file = &quot;../output/pbmc_tutorial.rds&quot;)</code></pre>
+</div>
+<div id="寻找差异表达基因" class="section level3">
+<h3>寻找差异表达基因</h3>
+<p>Seurat可以通过差异表达分析寻找不同细胞类群的标记基因。FindMarkers函数可以进行此操作，但是默认寻找单个类群(参数ident.1)与其他所有类群阳性和阴性标记基因。FindAllMarkers函数会自动寻找每个类群和其他每个类群之间的标记基因。</p>
+<p>min.pct参数:设定在两个细胞群中任何一个被检测到的百分比，通过此设定不检测很少表达基因来缩短程序运行时间。默认0.1。</p>
+<p>thresh.test参数：设定在两个细胞群中基因差异表达量。可以设置为0 ，程序运行时间会更长。</p>
+<p>max.cells.per.ident参数：每个类群细胞抽样设置；也可以缩短程序运行时间。</p>
+<p>寻找类群一的差异基因：</p>
+<pre class="r"><code>cluster1.markers &lt;- FindMarkers(pbmc, ident.1 = 1, min.pct = 0.25)
+head(cluster1.markers)</code></pre>
+<pre><code>##                p_val avg_log2FC pct.1 pct.2     p_val_adj
+## S100A9  0.000000e+00   5.570063 0.996 0.215  0.000000e+00
+## S100A8  0.000000e+00   5.477394 0.975 0.121  0.000000e+00
+## FCN1    0.000000e+00   3.394219 0.952 0.151  0.000000e+00
+## LGALS2  0.000000e+00   3.800484 0.908 0.059  0.000000e+00
+## CD14   2.856582e-294   2.815626 0.667 0.028 3.917516e-290
+## TYROBP 3.190467e-284   3.046798 0.994 0.265 4.375406e-280</code></pre>
+<p>寻找0-3相对于簇5的差异基因：</p>
+<pre class="r"><code>cluster5.markers &lt;- FindMarkers(pbmc, ident.1 = 5, ident.2 = c(0, 3), min.pct = 0.25)
+head(cluster5.markers, n = 5)</code></pre>
+<pre><code>##                       p_val avg_log2FC pct.1 pct.2     p_val_adj
+## FCGR3A        8.331882e-208   4.261784 0.975 0.040 1.142634e-203
+## CFD           1.932644e-198   3.423863 0.938 0.036 2.650429e-194
+## IFITM3        2.710023e-198   3.876058 0.975 0.049 3.716525e-194
+## CD68          1.069778e-193   3.013656 0.926 0.035 1.467094e-189
+## RP11-290F20.3 4.218926e-190   2.722303 0.840 0.016 5.785835e-186</code></pre>
+<p>寻找所有的簇相对于其他簇的差异基因（只有阳性）：</p>
+<pre class="r"><code>pbmc.markers &lt;- FindAllMarkers(pbmc, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)</code></pre>
+<pre><code>## Calculating cluster 0</code></pre>
+<pre><code>## Calculating cluster 1</code></pre>
+<pre><code>## Calculating cluster 2</code></pre>
+<pre><code>## Calculating cluster 3</code></pre>
+<pre><code>## Calculating cluster 4</code></pre>
+<pre><code>## Calculating cluster 5</code></pre>
+<pre><code>## Calculating cluster 6</code></pre>
+<pre><code>## Calculating cluster 7</code></pre>
+<pre><code>## Calculating cluster 8</code></pre>
+<pre class="r"><code>pbmc.markers %&gt;% group_by(cluster) %&gt;% top_n(n = 2, wt = avg_log2FC)</code></pre>
+<pre><code>## # A tibble: 18 × 7
+## # Groups:   cluster [9]
+##        p_val avg_log2FC pct.1 pct.2 p_val_adj cluster gene    
+##        &lt;dbl&gt;      &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;     &lt;dbl&gt; &lt;fct&gt;   &lt;chr&gt;   
+##  1 1.88e-117       1.08 0.913 0.588 2.57e-113 0       LDHB    
+##  2 5.01e- 85       1.34 0.437 0.108 6.88e- 81 0       CCR7    
+##  3 0               5.57 0.996 0.215 0         1       S100A9  
+##  4 0               5.48 0.975 0.121 0         1       S100A8  
+##  5 1.93e- 80       1.27 0.981 0.65  2.65e- 76 2       LTB     
+##  6 2.91e- 58       1.27 0.667 0.251 3.98e- 54 2       CD2     
+##  7 0               4.31 0.939 0.042 0         3       CD79A   
+##  8 1.06e-269       3.59 0.623 0.022 1.45e-265 3       TCL1A   
+##  9 3.60e-221       3.21 0.984 0.226 4.93e-217 4       CCL5    
+## 10 4.27e-176       3.01 0.573 0.05  5.85e-172 4       GZMK    
+## 11 3.51e-184       3.31 0.975 0.134 4.82e-180 5       FCGR3A  
+## 12 2.03e-125       3.09 1     0.315 2.78e-121 5       LST1    
+## 13 3.17e-267       4.83 0.961 0.068 4.35e-263 6       GZMB    
+## 14 1.04e-189       5.28 0.961 0.132 1.43e-185 6       GNLY    
+## 15 1.48e-220       3.87 0.812 0.011 2.03e-216 7       FCER1A  
+## 16 1.67e- 21       2.87 1     0.513 2.28e- 17 7       HLA-DPB1
+## 17 7.73e-200       7.24 1     0.01  1.06e-195 8       PF4     
+## 18 3.68e-110       8.58 1     0.024 5.05e-106 8       PPBP</code></pre>
+<p>有多种可视化标记基因的方法：</p>
+<ul>
+<li><p>VlnPlot: 基于细胞类群的基因表达概率分布。</p></li>
+<li><p>FeaturePlot：在tSNE 或 PCA图中画出基因表达情况。</p></li>
+</ul>
+<p>RidgePlot，CellScatter，DotPlot。</p>
+<pre class="r"><code>VlnPlot(pbmc, features = c(&quot;NUDT16&quot;, &quot;RPL41&quot;))</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-35-1.png" width="672" /></p>
+<pre class="r"><code>FeaturePlot(pbmc, features = c(&quot;MS4A1&quot;, &quot;GNLY&quot;, &quot;CD3E&quot;, &quot;CD14&quot;, &quot;FCER1A&quot;, &quot;FCGR3A&quot;, &quot;LYZ&quot;, &quot;PPBP&quot;, 
+    &quot;CD8A&quot;))</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-36-1.png" width="672" /></p>
+<pre class="r"><code>top10 &lt;- pbmc.markers %&gt;% group_by(cluster) %&gt;% top_n(n = 10, wt = avg_log2FC)
+DoHeatmap(pbmc, features = top10$gene) + NoLegend()</code></pre>
+<pre><code>## Warning in DoHeatmap(pbmc, features = top10$gene): The following features were
+## omitted as they were not found in the scale.data slot for the RNA assay: CD8A,
+## VPREB3, CD40LG, PIK3IP1, PRKCQ-AS1, NOSIP, LEF1, CD3E, CD3D, CCR7, LDHB, RPS3A</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-37-1.png" width="672" /></p>
+</div>
+<div id="细胞注释" class="section level3">
+<h3>细胞注释</h3>
+<p>根据已知细胞类型与基因标记的对应关系，可以为细胞类群找到对应的细胞类型。</p>
+<pre class="r"><code>new.cluster.ids &lt;- c(&quot;Naive CD4 T&quot;, &quot;Memory CD4 T&quot;, &quot;CD14+ Mono&quot;, &quot;B&quot;, &quot;CD8 T&quot;, &quot;FCGR3A+ Mono&quot;, 
+    &quot;NK&quot;, &quot;DC&quot;, &quot;Platelet&quot;)
+names(new.cluster.ids) &lt;- levels(pbmc)
+pbmc &lt;- RenameIdents(pbmc, new.cluster.ids)
+DimPlot(pbmc, reduction = &quot;umap&quot;, label = TRUE, pt.size = 0.5) + NoLegend()</code></pre>
+<p><img src="/post/2022-11-14-r-Seurat/Seurat_files/figure-html/unnamed-chunk-38-1.png" width="672" /></p>
+</div>
+</div>
