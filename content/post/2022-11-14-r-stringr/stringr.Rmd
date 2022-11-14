@@ -1,0 +1,483 @@
+---
+title: "stringr"
+author:
+  - 杨洪冰
+documentclass: ctexart
+output:
+  rticles::ctex:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+always_allow_html: true
+---
+
+## stringr
+
+在R中使用正则表达式，首先导入包。
+
+```{r message=FALSE}
+library(tidyverse)
+library(stringr)
+```
+
+使用一份地址数据：
+
+```{r}
+
+```
+
+### 字符串基础
+
+#### 字符串长度
+
+使用`str_length()函数：`
+
+```{r}
+str_length("R for data science")
+str_length(c("a", "R for data science", NA))
+```
+
+也可以配合dplyr函数：
+
+```{r}
+data.frame(
+  x = c("a", "R for data science", NA)
+) %>%
+  mutate(y = str_length(x))
+```
+
+#### 字符串组合
+
+使用`str_c()`函数：
+
+```{r}
+str_c("x", "y")
+```
+
+还可以设置中间的间隔：
+
+```{r}
+str_c("x", "y", sep = ',')
+```
+
+或者向量化：
+
+```{r}
+str_c(c("x", "y", "z"), c("x", "y", "z"), sep = ", ")
+```
+
+用在数据框中：
+
+```{r}
+data.frame(
+  x = c("I", "love", "you"),
+  y = c("you", "like", "me")
+) %>%
+  mutate(z = str_c(x, y, sep = "|"))
+```
+
+使用`collasse`选项，可以先组合向量每一个元素，再把它们组合成一个字符串：
+
+```{r}
+str_c(c("x", "y", "z"), c("a", "b", "c"), sep = "|")
+str_c(c("x", "y", "z"), c("a", "b", "c"), collapse = "|")
+```
+
+#### 字符串取子集
+
+使用`str_sub()`函数，需要指定开始与结束位置：
+
+```{r}
+x <- c("Apple", "Banana", "Pear")
+str_sub(x, 1, 3)
+```
+
+开始位置和结束位置如果是负整数，就表示位置是从后往前数，比如下面这段代码，截取倒数第3个至倒数第1个位置上的字符串:
+
+```{r}
+x <- c("Apple", "Banana", "Pear")
+str_sub(x, -3, -1)
+```
+
+可以进行复制操作，使用新的字符替换老的字符：
+
+```{r}
+x <- c("Apple", "Banana", "Pear")
+x
+str_sub(x, 1, 1)
+str_sub(x, 1, 1) <- 'Q'
+x
+```
+
+### 使用正则表达式进行模式匹配
+
+#### 基础匹配
+
+`str_view()`查看string是否匹配pattern，如果匹配，会以高亮显示：
+
+```{r}
+x <- c("apple", "banana", "pear")
+str_view(string = x, pattern = "an")
+```
+
+如果a的前后都有字母，我们希望匹配到这种a和前后的字母：
+
+```{r}
+str_view(x, '.a.')
+```
+
+这里的.表示任意一个字符，因此匹配.时需要转义：
+
+```{r}
+c("s.d") %>%
+  str_view(".")
+c("s.d") %>%
+  str_view("\\.")
+```
+
+#### 锚点
+
+##### 定位开头
+
+希望a是字符串的第一个字符：
+
+```{r}
+x <- c("apple", "banana", "pear")
+str_view(x, "^a")
+```
+
+##### 定位结尾
+
+希望a是字符串最后一个字符：
+
+```{r}
+x <- c("apple", "banana", "pear")
+str_view(x, "a$")
+```
+
+#### 字符类
+
+-   \d：匹配任意数字
+
+-   \s：匹配任意空白，空格、制表符等
+
+-   [abc]：匹配a或b或c
+
+-   [\^abc]：匹配除a、b、c之外的字符
+
+```{r}
+str_view(c('1a', 2), '\\d') #因为\需要转义
+str_view('you are happy', '\\s')
+str_view('hello world', '[eo]')
+str_view('hello world', '[^eo]')
+```
+
+#### 重复
+
+-   ?：匹配一次或0次
+
+-   +：一次或更多
+
+-   \*：任意次
+
+```{r}
+x <- "Roman numerals: MDCCCLXXXVIII"
+str_view(x, "CC?")
+str_view(x, "X+")
+```
+
+-   {n}：精确n次
+
+-   {n,}：至少n次
+
+-   {,m}：最多m次
+
+-   {n,m}：n-m次
+
+```{r}
+x <- "Roman numerals: MDCCCLXXXVIII"
+str_view(x, "C{2}")
+str_view(x, "C{2,}")
+str_view(x, "C{2,3}")
+```
+
+匹配默认是贪婪的，即尽可能匹配更多的字符，避免贪婪可以加?
+
+```{r}
+str_view(x, "CLX+")
+str_view(x, "CLX+?")
+```
+
+#### 分组与回溯引用
+
+```{r}
+ft <- fruit %>% head(10)
+ft
+```
+
+我们想看看这些单词里，有哪些字母是重复两次的，比如`aa`, `pp`. 如果用上面学的方法：
+
+```{r}
+str_view(ft, '.{2}', match = T)
+```
+
+这与设想的不一致，我们想要提取'pp'， 却提了'ap'。
+
+```{r}
+str_view(ft, '(.)\\1', match = T)
+```
+
+原理是，.表示任意一个字符，用()将.括起来，就有名字`\\1`，后面再接`\\1`即重复两次。如果两个()，分别为`\\1`和`\\2`，以此类推。
+
+类似，想匹配'abab'，'bcbc'这种，可以使用：
+
+```{r}
+str_view(ft, "(..)\\1", match = TRUE)
+```
+
+如果是'abba;这种：
+
+```{r}
+str_view(ft, "(.)(.)\\2\\1", match = TRUE)
+```
+
+#### 大小写敏感
+
+希望找出线上平台是google和meet的记录，显然Google和google是一个意思，都应该被筛选出：
+
+```{r}
+df <- tibble::tribble(
+  ~tch_id,  ~online_platform,
+      105,          "Google",
+      106,            "meet",
+      107,            "Zoom",
+      108,            "zoom",
+      109,     "Google Meet",
+      112, "Microsoft Teams",
+      113,                NA
+  )
+df
+```
+
+方法1：使用[`stringr::regex()`](https://stringr.tidyverse.org/reference/modifiers.html)
+
+```{r}
+df %>%
+   filter(
+      str_detect(online_platform, regex("google|meet", ignore_case = TRUE)))
+```
+
+方法2：使用`(?i)`
+
+```{r}
+df %>%
+   filter(
+      str_detect(online_platform, "(?i)google|meet"))
+```
+
+### 解决实际问题
+
+#### 查看字符串是否匹配模式
+
+```{r}
+x <- c("apple", "banana", "pear")
+str_detect(x, "e")
+```
+
+数据框也一样：
+
+```{r}
+x %>% 
+  as_tibble()%>% 
+  mutate(has_e = str_detect(x, "e"))
+```
+
+可以用于数据的筛选：
+
+```{r}
+x %>% 
+  as_tibble()%>%
+  filter(str_detect(x, "e"))
+```
+
+stringr::words包含了牛津字典里常用单词，查看t开头的：
+
+```{r}
+sum(str_detect(words, '^t'))
+```
+
+查看以元音结尾的：
+
+```{r}
+sum(str_detect(words, '[aeiou]$'))
+```
+
+放入数据框看以x结尾单词：
+
+```{r}
+tibble(word = words) %>% 
+  filter(str_detect(word, 'x$'))
+```
+
+`str_count()`返回字符串匹配的数量：
+
+```{r}
+x <- c("apple", "banana", "pear")
+str_count(x, "a")
+tibble(
+  word = words
+) %>%
+  mutate(
+    vowels = str_count(word, "[aeiou]"),
+    consonants = str_count(word, "[^aeiou]"))
+```
+
+#### 确定匹配的位置
+
+```{r}
+c("she sells seashells") %>% str_count(pattern = "s")
+```
+
+但我们向匹配后面带空格的s，应该：
+
+```{r}
+c("she sells seashells") %>% str_count(pattern = "s\\b")
+```
+
+#### 提取匹配内容
+
+```{r}
+colours <- c(
+  "red", "orange", "yellow",
+  "green", "blue", "purple"
+)
+colour_match <- str_c(colours, collapse = "|")
+colour_match
+more <- "It is hard to erase blue or red ink."
+str_extract(more, pattern = colour_match)
+```
+
+但是more中有两种颜色，`str_extract()`只能提取第一个出现的。使用`str_extract_all()`。
+
+```{r}
+str_extract_all(more, pattern = colour_match)
+more <- sentences[str_count(sentences, colour_match) > 1]
+more
+```
+
+#### 替换匹配内容
+
+只替换第一项：
+
+```{r}
+x <- c("apple", "pear", "banana")
+str_replace(x, "[aeiou]", "-")
+```
+
+替换全部匹配：
+
+```{r}
+str_replace_all(x, '[aeiou]', '-')
+```
+
+#### 拆分字符串
+
+```{r}
+lines <- "I love my country"
+lines
+str_split(lines, " ")
+fields <- c("Name: Hadley", "Country: NZ", "Age: 35")
+fields %>% str_split(": ", n = 2, simplify = TRUE) #F返回列表
+```
+
+### 进阶匹配
+
+想匹配Windows，同时希望Windows右侧是`"95", "98", "NT", "2000"`中的一个
+
+```{r}
+win <- c("Windows2000", "Windows", "Windows3.1")
+str_view(win, "Windows(?=95|98|NT|2000)")
+```
+
+反向匹配：
+
+```{r}
+str_view(win, "Windows(?!95|98|NT|2000)")
+```
+
+Windows后面的 `()` 是匹配条件，事实上，有四种情形：
+
+-   `(?=pattern)` 要求此位置的后面必须匹配表达式pattern
+
+-   `(?!pattern)` 要求此位置的后面不能匹配表达式pattern
+
+-   `(?<=pattern)` 要求此位置的前面必须匹配表达式pattern
+
+-   `(?<!pattern)` 要求此位置的前面不能匹配表达式pattern
+
+```{r}
+#匹配前面
+win <- c("2000Windows", "Windows", "3.1Windows")
+str_view(win, "(?<=95|98|NT|2000)Windows")
+str_view(win, "(?<!95|98|NT|2000)Windows")
+```
+
+### 案例分析
+
+#### 案例一
+
+希望提取第二列数值，构成新列。
+
+```{r}
+dt <- tibble(
+  x = 1:4,
+  y = c("wk 3", "week-1", "7", "w#9")
+)
+dt
+dt %>% 
+  mutate(new = str_extract(y, '\\d'))
+```
+
+#### 案例二
+
+提取第二列大写字母：
+
+```{r}
+df <- data.frame(
+  x = seq_along(1:7),
+  y = c("2016123456", "20150513", "AB2016123456", "J2017000987", "B2017000987C", "aksdf", "2014")
+)
+df
+df %>% 
+  mutate(new = str_extract_all(y, '[A-Z]')) %>% 
+  unnest(new)
+```
+
+#### 案例三
+
+提取起始数字：
+
+```{r}
+df <- tibble(x = c("1-12week", "1-10week", "5-12week"))
+df
+df %>% 
+  extract(
+    x,
+    c('start', 'on', 'end'),'(\\d+)-(\\d+)(\\D+)',
+    remove = F
+  )
+```
+
+#### 案例四
+
+提取大写字母后的数字：
+
+```{r}
+df <- tibble(
+  x = c("12W34", "AB2C46", "B217C", "akTs6df", "21WD4")
+)
+df
+df %>% 
+  mutate(new = str_extract_all(x, '(?<=[A-Z])[0-9]')) %>% 
+  unnest(new)
+```

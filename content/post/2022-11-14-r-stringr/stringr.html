@@ -1,0 +1,520 @@
+---
+title: "stringr"
+author:
+  - 杨洪冰
+documentclass: ctexart
+output:
+  rticles::ctex:
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
+always_allow_html: true
+---
+
+<script src="/rmarkdown-libs/htmlwidgets/htmlwidgets.js"></script>
+<link href="/rmarkdown-libs/str_view/str_view.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/str_view-binding/str_view.js"></script>
+
+
+<div id="stringr" class="section level2">
+<h2>stringr</h2>
+<p>在R中使用正则表达式，首先导入包。</p>
+<pre class="r"><code>library(tidyverse)
+library(stringr)</code></pre>
+<p>使用一份地址数据：</p>
+<div id="字符串基础" class="section level3">
+<h3>字符串基础</h3>
+<div id="字符串长度" class="section level4">
+<h4>字符串长度</h4>
+<p>使用<code>str_length()函数：</code></p>
+<pre class="r"><code>str_length(&quot;R for data science&quot;)</code></pre>
+<pre><code>## [1] 18</code></pre>
+<pre class="r"><code>str_length(c(&quot;a&quot;, &quot;R for data science&quot;, NA))</code></pre>
+<pre><code>## [1]  1 18 NA</code></pre>
+<p>也可以配合dplyr函数：</p>
+<pre class="r"><code>data.frame(
+  x = c(&quot;a&quot;, &quot;R for data science&quot;, NA)
+) %&gt;%
+  mutate(y = str_length(x))</code></pre>
+<pre><code>##                    x  y
+## 1                  a  1
+## 2 R for data science 18
+## 3               &lt;NA&gt; NA</code></pre>
+</div>
+<div id="字符串组合" class="section level4">
+<h4>字符串组合</h4>
+<p>使用<code>str_c()</code>函数：</p>
+<pre class="r"><code>str_c(&quot;x&quot;, &quot;y&quot;)</code></pre>
+<pre><code>## [1] &quot;xy&quot;</code></pre>
+<p>还可以设置中间的间隔：</p>
+<pre class="r"><code>str_c(&quot;x&quot;, &quot;y&quot;, sep = &#39;,&#39;)</code></pre>
+<pre><code>## [1] &quot;x,y&quot;</code></pre>
+<p>或者向量化：</p>
+<pre class="r"><code>str_c(c(&quot;x&quot;, &quot;y&quot;, &quot;z&quot;), c(&quot;x&quot;, &quot;y&quot;, &quot;z&quot;), sep = &quot;, &quot;)</code></pre>
+<pre><code>## [1] &quot;x, x&quot; &quot;y, y&quot; &quot;z, z&quot;</code></pre>
+<p>用在数据框中：</p>
+<pre class="r"><code>data.frame(
+  x = c(&quot;I&quot;, &quot;love&quot;, &quot;you&quot;),
+  y = c(&quot;you&quot;, &quot;like&quot;, &quot;me&quot;)
+) %&gt;%
+  mutate(z = str_c(x, y, sep = &quot;|&quot;))</code></pre>
+<pre><code>##      x    y         z
+## 1    I  you     I|you
+## 2 love like love|like
+## 3  you   me    you|me</code></pre>
+<p>使用<code>collasse</code>选项，可以先组合向量每一个元素，再把它们组合成一个字符串：</p>
+<pre class="r"><code>str_c(c(&quot;x&quot;, &quot;y&quot;, &quot;z&quot;), c(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;), sep = &quot;|&quot;)</code></pre>
+<pre><code>## [1] &quot;x|a&quot; &quot;y|b&quot; &quot;z|c&quot;</code></pre>
+<pre class="r"><code>str_c(c(&quot;x&quot;, &quot;y&quot;, &quot;z&quot;), c(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;), collapse = &quot;|&quot;)</code></pre>
+<pre><code>## [1] &quot;xa|yb|zc&quot;</code></pre>
+</div>
+<div id="字符串取子集" class="section level4">
+<h4>字符串取子集</h4>
+<p>使用<code>str_sub()</code>函数，需要指定开始与结束位置：</p>
+<pre class="r"><code>x &lt;- c(&quot;Apple&quot;, &quot;Banana&quot;, &quot;Pear&quot;)
+str_sub(x, 1, 3)</code></pre>
+<pre><code>## [1] &quot;App&quot; &quot;Ban&quot; &quot;Pea&quot;</code></pre>
+<p>开始位置和结束位置如果是负整数，就表示位置是从后往前数，比如下面这段代码，截取倒数第3个至倒数第1个位置上的字符串:</p>
+<pre class="r"><code>x &lt;- c(&quot;Apple&quot;, &quot;Banana&quot;, &quot;Pear&quot;)
+str_sub(x, -3, -1)</code></pre>
+<pre><code>## [1] &quot;ple&quot; &quot;ana&quot; &quot;ear&quot;</code></pre>
+<p>可以进行复制操作，使用新的字符替换老的字符：</p>
+<pre class="r"><code>x &lt;- c(&quot;Apple&quot;, &quot;Banana&quot;, &quot;Pear&quot;)
+x</code></pre>
+<pre><code>## [1] &quot;Apple&quot;  &quot;Banana&quot; &quot;Pear&quot;</code></pre>
+<pre class="r"><code>str_sub(x, 1, 1)</code></pre>
+<pre><code>## [1] &quot;A&quot; &quot;B&quot; &quot;P&quot;</code></pre>
+<pre class="r"><code>str_sub(x, 1, 1) &lt;- &#39;Q&#39;
+x</code></pre>
+<pre><code>## [1] &quot;Qpple&quot;  &quot;Qanana&quot; &quot;Qear&quot;</code></pre>
+</div>
+</div>
+<div id="使用正则表达式进行模式匹配" class="section level3">
+<h3>使用正则表达式进行模式匹配</h3>
+<div id="基础匹配" class="section level4">
+<h4>基础匹配</h4>
+<p><code>str_view()</code>查看string是否匹配pattern，如果匹配，会以高亮显示：</p>
+<pre class="r"><code>x &lt;- c(&quot;apple&quot;, &quot;banana&quot;, &quot;pear&quot;)
+str_view(string = x, pattern = &quot;an&quot;)</code></pre>
+<div id="htmlwidget-1" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-1">{"x":{"html":"<ul>\n  <li>apple<\/li>\n  <li>b<span class='match'>an<\/span>ana<\/li>\n  <li>pear<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<p>如果a的前后都有字母，我们希望匹配到这种a和前后的字母：</p>
+<pre class="r"><code>str_view(x, &#39;.a.&#39;)</code></pre>
+<div id="htmlwidget-2" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-2">{"x":{"html":"<ul>\n  <li>apple<\/li>\n  <li><span class='match'>ban<\/span>ana<\/li>\n  <li>p<span class='match'>ear<\/span><\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<p>这里的.表示任意一个字符，因此匹配.时需要转义：</p>
+<pre class="r"><code>c(&quot;s.d&quot;) %&gt;%
+  str_view(&quot;.&quot;)</code></pre>
+<div id="htmlwidget-3" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-3">{"x":{"html":"<ul>\n  <li><span class='match'>s<\/span>.d<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>c(&quot;s.d&quot;) %&gt;%
+  str_view(&quot;\\.&quot;)</code></pre>
+<div id="htmlwidget-4" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-4">{"x":{"html":"<ul>\n  <li>s<span class='match'>.<\/span>d<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="锚点" class="section level4">
+<h4>锚点</h4>
+<div id="定位开头" class="section level5">
+<h5>定位开头</h5>
+<p>希望a是字符串的第一个字符：</p>
+<pre class="r"><code>x &lt;- c(&quot;apple&quot;, &quot;banana&quot;, &quot;pear&quot;)
+str_view(x, &quot;^a&quot;)</code></pre>
+<div id="htmlwidget-5" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-5">{"x":{"html":"<ul>\n  <li><span class='match'>a<\/span>pple<\/li>\n  <li>banana<\/li>\n  <li>pear<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="定位结尾" class="section level5">
+<h5>定位结尾</h5>
+<p>希望a是字符串最后一个字符：</p>
+<pre class="r"><code>x &lt;- c(&quot;apple&quot;, &quot;banana&quot;, &quot;pear&quot;)
+str_view(x, &quot;a$&quot;)</code></pre>
+<div id="htmlwidget-6" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-6">{"x":{"html":"<ul>\n  <li>apple<\/li>\n  <li>banan<span class='match'>a<\/span><\/li>\n  <li>pear<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+</div>
+</div>
+<div id="字符类" class="section level4">
+<h4>字符类</h4>
+<ul>
+<li><p>匹配任意数字</p></li>
+<li><p>：匹配任意空白，空格、制表符等</p></li>
+<li><p>[abc]：匹配a或b或c</p></li>
+<li><p>[^abc]：匹配除a、b、c之外的字符</p></li>
+</ul>
+<pre class="r"><code>str_view(c(&#39;1a&#39;, 2), &#39;\\d&#39;) #因为\需要转义</code></pre>
+<div id="htmlwidget-7" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-7">{"x":{"html":"<ul>\n  <li><span class='match'>1<\/span>a<\/li>\n  <li><span class='match'>2<\/span><\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>str_view(&#39;you are happy&#39;, &#39;\\s&#39;)</code></pre>
+<div id="htmlwidget-8" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-8">{"x":{"html":"<ul>\n  <li>you<span class='match'> <\/span>are happy<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>str_view(&#39;hello world&#39;, &#39;[eo]&#39;)</code></pre>
+<div id="htmlwidget-9" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-9">{"x":{"html":"<ul>\n  <li>h<span class='match'>e<\/span>llo world<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>str_view(&#39;hello world&#39;, &#39;[^eo]&#39;)</code></pre>
+<div id="htmlwidget-10" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-10">{"x":{"html":"<ul>\n  <li><span class='match'>h<\/span>ello world<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="重复" class="section level4">
+<h4>重复</h4>
+<ul>
+<li><p>?：匹配一次或0次</p></li>
+<li><p>+：一次或更多</p></li>
+<li><p>*：任意次</p></li>
+</ul>
+<pre class="r"><code>x &lt;- &quot;Roman numerals: MDCCCLXXXVIII&quot;
+str_view(x, &quot;CC?&quot;)</code></pre>
+<div id="htmlwidget-11" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-11">{"x":{"html":"<ul>\n  <li>Roman numerals: MD<span class='match'>CC<\/span>CLXXXVIII<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>str_view(x, &quot;X+&quot;)</code></pre>
+<div id="htmlwidget-12" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-12">{"x":{"html":"<ul>\n  <li>Roman numerals: MDCCCL<span class='match'>XXX<\/span>VIII<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<ul>
+<li><p>{n}：精确n次</p></li>
+<li><p>{n,}：至少n次</p></li>
+<li><p>{,m}：最多m次</p></li>
+<li><p>{n,m}：n-m次</p></li>
+</ul>
+<pre class="r"><code>x &lt;- &quot;Roman numerals: MDCCCLXXXVIII&quot;
+str_view(x, &quot;C{2}&quot;)</code></pre>
+<div id="htmlwidget-13" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-13">{"x":{"html":"<ul>\n  <li>Roman numerals: MD<span class='match'>CC<\/span>CLXXXVIII<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>str_view(x, &quot;C{2,}&quot;)</code></pre>
+<div id="htmlwidget-14" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-14">{"x":{"html":"<ul>\n  <li>Roman numerals: MD<span class='match'>CCC<\/span>LXXXVIII<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>str_view(x, &quot;C{2,3}&quot;)</code></pre>
+<div id="htmlwidget-15" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-15">{"x":{"html":"<ul>\n  <li>Roman numerals: MD<span class='match'>CCC<\/span>LXXXVIII<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<p>匹配默认是贪婪的，即尽可能匹配更多的字符，避免贪婪可以加?</p>
+<pre class="r"><code>str_view(x, &quot;CLX+&quot;)</code></pre>
+<div id="htmlwidget-16" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-16">{"x":{"html":"<ul>\n  <li>Roman numerals: MDCC<span class='match'>CLXXX<\/span>VIII<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>str_view(x, &quot;CLX+?&quot;)</code></pre>
+<div id="htmlwidget-17" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-17">{"x":{"html":"<ul>\n  <li>Roman numerals: MDCC<span class='match'>CLX<\/span>XXVIII<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="分组与回溯引用" class="section level4">
+<h4>分组与回溯引用</h4>
+<pre class="r"><code>ft &lt;- fruit %&gt;% head(10)
+ft</code></pre>
+<pre><code>##  [1] &quot;apple&quot;        &quot;apricot&quot;      &quot;avocado&quot;      &quot;banana&quot;       &quot;bell pepper&quot; 
+##  [6] &quot;bilberry&quot;     &quot;blackberry&quot;   &quot;blackcurrant&quot; &quot;blood orange&quot; &quot;blueberry&quot;</code></pre>
+<p>我们想看看这些单词里，有哪些字母是重复两次的，比如<code>aa</code>, <code>pp</code>. 如果用上面学的方法：</p>
+<pre class="r"><code>str_view(ft, &#39;.{2}&#39;, match = T)</code></pre>
+<div id="htmlwidget-18" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-18">{"x":{"html":"<ul>\n  <li><span class='match'>ap<\/span>ple<\/li>\n  <li><span class='match'>ap<\/span>ricot<\/li>\n  <li><span class='match'>av<\/span>ocado<\/li>\n  <li><span class='match'>ba<\/span>nana<\/li>\n  <li><span class='match'>be<\/span>ll pepper<\/li>\n  <li><span class='match'>bi<\/span>lberry<\/li>\n  <li><span class='match'>bl<\/span>ackberry<\/li>\n  <li><span class='match'>bl<\/span>ackcurrant<\/li>\n  <li><span class='match'>bl<\/span>ood orange<\/li>\n  <li><span class='match'>bl<\/span>ueberry<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<p>这与设想的不一致，我们想要提取’pp’， 却提了’ap’。</p>
+<pre class="r"><code>str_view(ft, &#39;(.)\\1&#39;, match = T)</code></pre>
+<div id="htmlwidget-19" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-19">{"x":{"html":"<ul>\n  <li>a<span class='match'>pp<\/span>le<\/li>\n  <li>be<span class='match'>ll<\/span> pepper<\/li>\n  <li>bilbe<span class='match'>rr<\/span>y<\/li>\n  <li>blackbe<span class='match'>rr<\/span>y<\/li>\n  <li>blackcu<span class='match'>rr<\/span>ant<\/li>\n  <li>bl<span class='match'>oo<\/span>d orange<\/li>\n  <li>bluebe<span class='match'>rr<\/span>y<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<p>原理是，.表示任意一个字符，用()将.括起来，就有名字<code>\\1</code>，后面再接<code>\\1</code>即重复两次。如果两个()，分别为<code>\\1</code>和<code>\\2</code>，以此类推。</p>
+<p>类似，想匹配’abab’，’bcbc’这种，可以使用：</p>
+<pre class="r"><code>str_view(ft, &quot;(..)\\1&quot;, match = TRUE)</code></pre>
+<div id="htmlwidget-20" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-20">{"x":{"html":"<ul>\n  <li>b<span class='match'>anan<\/span>a<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<p>如果是’abba;这种：</p>
+<pre class="r"><code>str_view(ft, &quot;(.)(.)\\2\\1&quot;, match = TRUE)</code></pre>
+<div id="htmlwidget-21" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-21">{"x":{"html":"<ul>\n  <li>bell p<span class='match'>eppe<\/span>r<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="大小写敏感" class="section level4">
+<h4>大小写敏感</h4>
+<p>希望找出线上平台是google和meet的记录，显然Google和google是一个意思，都应该被筛选出：</p>
+<pre class="r"><code>df &lt;- tibble::tribble(
+  ~tch_id,  ~online_platform,
+      105,          &quot;Google&quot;,
+      106,            &quot;meet&quot;,
+      107,            &quot;Zoom&quot;,
+      108,            &quot;zoom&quot;,
+      109,     &quot;Google Meet&quot;,
+      112, &quot;Microsoft Teams&quot;,
+      113,                NA
+  )
+df</code></pre>
+<pre><code>## # A tibble: 7 × 2
+##   tch_id online_platform
+##    &lt;dbl&gt; &lt;chr&gt;          
+## 1    105 Google         
+## 2    106 meet           
+## 3    107 Zoom           
+## 4    108 zoom           
+## 5    109 Google Meet    
+## 6    112 Microsoft Teams
+## 7    113 &lt;NA&gt;</code></pre>
+<p>方法1：使用<a href="https://stringr.tidyverse.org/reference/modifiers.html"><code>stringr::regex()</code></a></p>
+<pre class="r"><code>df %&gt;%
+   filter(
+      str_detect(online_platform, regex(&quot;google|meet&quot;, ignore_case = TRUE)))</code></pre>
+<pre><code>## # A tibble: 3 × 2
+##   tch_id online_platform
+##    &lt;dbl&gt; &lt;chr&gt;          
+## 1    105 Google         
+## 2    106 meet           
+## 3    109 Google Meet</code></pre>
+<p>方法2：使用<code>(?i)</code></p>
+<pre class="r"><code>df %&gt;%
+   filter(
+      str_detect(online_platform, &quot;(?i)google|meet&quot;))</code></pre>
+<pre><code>## # A tibble: 3 × 2
+##   tch_id online_platform
+##    &lt;dbl&gt; &lt;chr&gt;          
+## 1    105 Google         
+## 2    106 meet           
+## 3    109 Google Meet</code></pre>
+</div>
+</div>
+<div id="解决实际问题" class="section level3">
+<h3>解决实际问题</h3>
+<div id="查看字符串是否匹配模式" class="section level4">
+<h4>查看字符串是否匹配模式</h4>
+<pre class="r"><code>x &lt;- c(&quot;apple&quot;, &quot;banana&quot;, &quot;pear&quot;)
+str_detect(x, &quot;e&quot;)</code></pre>
+<pre><code>## [1]  TRUE FALSE  TRUE</code></pre>
+<p>数据框也一样：</p>
+<pre class="r"><code>x %&gt;% 
+  as_tibble()%&gt;% 
+  mutate(has_e = str_detect(x, &quot;e&quot;))</code></pre>
+<pre><code>## # A tibble: 3 × 2
+##   value  has_e
+##   &lt;chr&gt;  &lt;lgl&gt;
+## 1 apple  TRUE 
+## 2 banana FALSE
+## 3 pear   TRUE</code></pre>
+<p>可以用于数据的筛选：</p>
+<pre class="r"><code>x %&gt;% 
+  as_tibble()%&gt;%
+  filter(str_detect(x, &quot;e&quot;))</code></pre>
+<pre><code>## # A tibble: 2 × 1
+##   value
+##   &lt;chr&gt;
+## 1 apple
+## 2 pear</code></pre>
+<p>stringr::words包含了牛津字典里常用单词，查看t开头的：</p>
+<pre class="r"><code>sum(str_detect(words, &#39;^t&#39;))</code></pre>
+<pre><code>## [1] 65</code></pre>
+<p>查看以元音结尾的：</p>
+<pre class="r"><code>sum(str_detect(words, &#39;[aeiou]$&#39;))</code></pre>
+<pre><code>## [1] 271</code></pre>
+<p>放入数据框看以x结尾单词：</p>
+<pre class="r"><code>tibble(word = words) %&gt;% 
+  filter(str_detect(word, &#39;x$&#39;))</code></pre>
+<pre><code>## # A tibble: 4 × 1
+##   word 
+##   &lt;chr&gt;
+## 1 box  
+## 2 sex  
+## 3 six  
+## 4 tax</code></pre>
+<p><code>str_count()</code>返回字符串匹配的数量：</p>
+<pre class="r"><code>x &lt;- c(&quot;apple&quot;, &quot;banana&quot;, &quot;pear&quot;)
+str_count(x, &quot;a&quot;)</code></pre>
+<pre><code>## [1] 1 3 1</code></pre>
+<pre class="r"><code>tibble(
+  word = words
+) %&gt;%
+  mutate(
+    vowels = str_count(word, &quot;[aeiou]&quot;),
+    consonants = str_count(word, &quot;[^aeiou]&quot;))</code></pre>
+<pre><code>## # A tibble: 980 × 3
+##    word     vowels consonants
+##    &lt;chr&gt;     &lt;int&gt;      &lt;int&gt;
+##  1 a             1          0
+##  2 able          2          2
+##  3 about         3          2
+##  4 absolute      4          4
+##  5 accept        2          4
+##  6 account       3          4
+##  7 achieve       4          3
+##  8 across        2          4
+##  9 act           1          2
+## 10 active        3          3
+## # … with 970 more rows</code></pre>
+</div>
+<div id="确定匹配的位置" class="section level4">
+<h4>确定匹配的位置</h4>
+<pre class="r"><code>c(&quot;she sells seashells&quot;) %&gt;% str_count(pattern = &quot;s&quot;)</code></pre>
+<pre><code>## [1] 6</code></pre>
+<p>但我们向匹配后面带空格的s，应该：</p>
+<pre class="r"><code>c(&quot;she sells seashells&quot;) %&gt;% str_count(pattern = &quot;s\\b&quot;)</code></pre>
+<pre><code>## [1] 2</code></pre>
+</div>
+<div id="提取匹配内容" class="section level4">
+<h4>提取匹配内容</h4>
+<pre class="r"><code>colours &lt;- c(
+  &quot;red&quot;, &quot;orange&quot;, &quot;yellow&quot;,
+  &quot;green&quot;, &quot;blue&quot;, &quot;purple&quot;
+)
+colour_match &lt;- str_c(colours, collapse = &quot;|&quot;)
+colour_match</code></pre>
+<pre><code>## [1] &quot;red|orange|yellow|green|blue|purple&quot;</code></pre>
+<pre class="r"><code>more &lt;- &quot;It is hard to erase blue or red ink.&quot;
+str_extract(more, pattern = colour_match)</code></pre>
+<pre><code>## [1] &quot;blue&quot;</code></pre>
+<p>但是more中有两种颜色，<code>str_extract()</code>只能提取第一个出现的。使用<code>str_extract_all()</code>。</p>
+<pre class="r"><code>str_extract_all(more, pattern = colour_match)</code></pre>
+<pre><code>## [[1]]
+## [1] &quot;blue&quot; &quot;red&quot;</code></pre>
+<pre class="r"><code>more &lt;- sentences[str_count(sentences, colour_match) &gt; 1]
+more</code></pre>
+<pre><code>## [1] &quot;It is hard to erase blue or red ink.&quot;          
+## [2] &quot;The green light in the brown box flickered.&quot;   
+## [3] &quot;The sky in the west is tinged with orange red.&quot;</code></pre>
+</div>
+<div id="替换匹配内容" class="section level4">
+<h4>替换匹配内容</h4>
+<p>只替换第一项：</p>
+<pre class="r"><code>x &lt;- c(&quot;apple&quot;, &quot;pear&quot;, &quot;banana&quot;)
+str_replace(x, &quot;[aeiou]&quot;, &quot;-&quot;)</code></pre>
+<pre><code>## [1] &quot;-pple&quot;  &quot;p-ar&quot;   &quot;b-nana&quot;</code></pre>
+<p>替换全部匹配：</p>
+<pre class="r"><code>str_replace_all(x, &#39;[aeiou]&#39;, &#39;-&#39;)</code></pre>
+<pre><code>## [1] &quot;-ppl-&quot;  &quot;p--r&quot;   &quot;b-n-n-&quot;</code></pre>
+</div>
+<div id="拆分字符串" class="section level4">
+<h4>拆分字符串</h4>
+<pre class="r"><code>lines &lt;- &quot;I love my country&quot;
+lines</code></pre>
+<pre><code>## [1] &quot;I love my country&quot;</code></pre>
+<pre class="r"><code>str_split(lines, &quot; &quot;)</code></pre>
+<pre><code>## [[1]]
+## [1] &quot;I&quot;       &quot;love&quot;    &quot;my&quot;      &quot;country&quot;</code></pre>
+<pre class="r"><code>fields &lt;- c(&quot;Name: Hadley&quot;, &quot;Country: NZ&quot;, &quot;Age: 35&quot;)
+fields %&gt;% str_split(&quot;: &quot;, n = 2, simplify = TRUE) #F返回列表</code></pre>
+<pre><code>##      [,1]      [,2]    
+## [1,] &quot;Name&quot;    &quot;Hadley&quot;
+## [2,] &quot;Country&quot; &quot;NZ&quot;    
+## [3,] &quot;Age&quot;     &quot;35&quot;</code></pre>
+</div>
+</div>
+<div id="进阶匹配" class="section level3">
+<h3>进阶匹配</h3>
+<p>想匹配Windows，同时希望Windows右侧是<code>"95", "98", "NT", "2000"</code>中的一个</p>
+<pre class="r"><code>win &lt;- c(&quot;Windows2000&quot;, &quot;Windows&quot;, &quot;Windows3.1&quot;)
+str_view(win, &quot;Windows(?=95|98|NT|2000)&quot;)</code></pre>
+<div id="htmlwidget-22" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-22">{"x":{"html":"<ul>\n  <li><span class='match'>Windows<\/span>2000<\/li>\n  <li>Windows<\/li>\n  <li>Windows3.1<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<p>反向匹配：</p>
+<pre class="r"><code>str_view(win, &quot;Windows(?!95|98|NT|2000)&quot;)</code></pre>
+<div id="htmlwidget-23" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-23">{"x":{"html":"<ul>\n  <li>Windows2000<\/li>\n  <li><span class='match'>Windows<\/span><\/li>\n  <li><span class='match'>Windows<\/span>3.1<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<p>Windows后面的 <code>()</code> 是匹配条件，事实上，有四种情形：</p>
+<ul>
+<li><p><code>(?=pattern)</code> 要求此位置的后面必须匹配表达式pattern</p></li>
+<li><p><code>(?!pattern)</code> 要求此位置的后面不能匹配表达式pattern</p></li>
+<li><p><code>(?&lt;=pattern)</code> 要求此位置的前面必须匹配表达式pattern</p></li>
+<li><p><code>(?&lt;!pattern)</code> 要求此位置的前面不能匹配表达式pattern</p></li>
+</ul>
+<pre class="r"><code>#匹配前面
+win &lt;- c(&quot;2000Windows&quot;, &quot;Windows&quot;, &quot;3.1Windows&quot;)
+str_view(win, &quot;(?&lt;=95|98|NT|2000)Windows&quot;)</code></pre>
+<div id="htmlwidget-24" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-24">{"x":{"html":"<ul>\n  <li>2000<span class='match'>Windows<\/span><\/li>\n  <li>Windows<\/li>\n  <li>3.1Windows<\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>str_view(win, &quot;(?&lt;!95|98|NT|2000)Windows&quot;)</code></pre>
+<div id="htmlwidget-25" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-25">{"x":{"html":"<ul>\n  <li>2000Windows<\/li>\n  <li><span class='match'>Windows<\/span><\/li>\n  <li>3.1<span class='match'>Windows<\/span><\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="案例分析" class="section level3">
+<h3>案例分析</h3>
+<div id="案例一" class="section level4">
+<h4>案例一</h4>
+<p>希望提取第二列数值，构成新列。</p>
+<pre class="r"><code>dt &lt;- tibble(
+  x = 1:4,
+  y = c(&quot;wk 3&quot;, &quot;week-1&quot;, &quot;7&quot;, &quot;w#9&quot;)
+)
+dt</code></pre>
+<pre><code>## # A tibble: 4 × 2
+##       x y     
+##   &lt;int&gt; &lt;chr&gt; 
+## 1     1 wk 3  
+## 2     2 week-1
+## 3     3 7     
+## 4     4 w#9</code></pre>
+<pre class="r"><code>dt %&gt;% 
+  mutate(new = str_extract(y, &#39;\\d&#39;))</code></pre>
+<pre><code>## # A tibble: 4 × 3
+##       x y      new  
+##   &lt;int&gt; &lt;chr&gt;  &lt;chr&gt;
+## 1     1 wk 3   3    
+## 2     2 week-1 1    
+## 3     3 7      7    
+## 4     4 w#9    9</code></pre>
+</div>
+<div id="案例二" class="section level4">
+<h4>案例二</h4>
+<p>提取第二列大写字母：</p>
+<pre class="r"><code>df &lt;- data.frame(
+  x = seq_along(1:7),
+  y = c(&quot;2016123456&quot;, &quot;20150513&quot;, &quot;AB2016123456&quot;, &quot;J2017000987&quot;, &quot;B2017000987C&quot;, &quot;aksdf&quot;, &quot;2014&quot;)
+)
+df</code></pre>
+<pre><code>##   x            y
+## 1 1   2016123456
+## 2 2     20150513
+## 3 3 AB2016123456
+## 4 4  J2017000987
+## 5 5 B2017000987C
+## 6 6        aksdf
+## 7 7         2014</code></pre>
+<pre class="r"><code>df %&gt;% 
+  mutate(new = str_extract_all(y, &#39;[A-Z]&#39;)) %&gt;% 
+  unnest(new)</code></pre>
+<pre><code>## # A tibble: 5 × 3
+##       x y            new  
+##   &lt;int&gt; &lt;chr&gt;        &lt;chr&gt;
+## 1     3 AB2016123456 A    
+## 2     3 AB2016123456 B    
+## 3     4 J2017000987  J    
+## 4     5 B2017000987C B    
+## 5     5 B2017000987C C</code></pre>
+</div>
+<div id="案例三" class="section level4">
+<h4>案例三</h4>
+<p>提取起始数字：</p>
+<pre class="r"><code>df &lt;- tibble(x = c(&quot;1-12week&quot;, &quot;1-10week&quot;, &quot;5-12week&quot;))
+df</code></pre>
+<pre><code>## # A tibble: 3 × 1
+##   x       
+##   &lt;chr&gt;   
+## 1 1-12week
+## 2 1-10week
+## 3 5-12week</code></pre>
+<pre class="r"><code>df %&gt;% 
+  extract(
+    x,
+    c(&#39;start&#39;, &#39;on&#39;, &#39;end&#39;),&#39;(\\d+)-(\\d+)(\\D+)&#39;,
+    remove = F
+  )</code></pre>
+<pre><code>## # A tibble: 3 × 4
+##   x        start on    end  
+##   &lt;chr&gt;    &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;
+## 1 1-12week 1     12    week 
+## 2 1-10week 1     10    week 
+## 3 5-12week 5     12    week</code></pre>
+</div>
+<div id="案例四" class="section level4">
+<h4>案例四</h4>
+<p>提取大写字母后的数字：</p>
+<pre class="r"><code>df &lt;- tibble(
+  x = c(&quot;12W34&quot;, &quot;AB2C46&quot;, &quot;B217C&quot;, &quot;akTs6df&quot;, &quot;21WD4&quot;)
+)
+df</code></pre>
+<pre><code>## # A tibble: 5 × 1
+##   x      
+##   &lt;chr&gt;  
+## 1 12W34  
+## 2 AB2C46 
+## 3 B217C  
+## 4 akTs6df
+## 5 21WD4</code></pre>
+<pre class="r"><code>df %&gt;% 
+  mutate(new = str_extract_all(x, &#39;(?&lt;=[A-Z])[0-9]&#39;)) %&gt;% 
+  unnest(new)</code></pre>
+<pre><code>## # A tibble: 5 × 2
+##   x      new  
+##   &lt;chr&gt;  &lt;chr&gt;
+## 1 12W34  3    
+## 2 AB2C46 2    
+## 3 AB2C46 4    
+## 4 B217C  2    
+## 5 21WD4  4</code></pre>
+</div>
+</div>
+</div>
